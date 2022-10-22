@@ -18,7 +18,7 @@ func NewClient(hostPath string) *Client {
 	cl := &Client{C: sling.New()}
 	cl.implClient = cleanhttp.DefaultPooledClient()
 	cl.C.Client(cl.implClient) // TODO: passing context (Timeout for instance) by user to a request
-	cl.C.Base(hostPath)
+	cl.C.Base(hostPath + "/api")
 
 	return cl
 }
