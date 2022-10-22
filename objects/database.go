@@ -77,7 +77,7 @@ func (dr *DatabaseRequester) Get(ctx context.Context, buf *Database, name string
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
-	sl := dr.Client.C.QueryStruct(options).Get(dr.getOrganizationDBUrl(name, "db"))
+	sl := dr.Client.C.QueryStruct(options).Get(dr.getOrganizationDBURL(name, "db"))
 	if _, err = doRequest(ctx, sl, buf); err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (dr *DatabaseRequester) Create(ctx context.Context, db Database, options *D
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
-	sl := dr.Client.C.BodyJSON(options).Post(dr.getOrganizationDBUrl(db.Name, "db"))
+	sl := dr.Client.C.BodyJSON(options).Post(dr.getOrganizationDBURL(db.Name, "db"))
 	_, err = doRequest(ctx, sl, nil)
 	return
 }
@@ -117,7 +117,7 @@ func (dr *DatabaseRequester) Delete(ctx context.Context, name string, options *D
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
-	sl := dr.Client.C.QueryStruct(options).Delete(dr.getOrganizationDBUrl(name, "db"))
+	sl := dr.Client.C.QueryStruct(options).Delete(dr.getOrganizationDBURL(name, "db"))
 	_, err = doRequest(ctx, sl, nil)
 	return
 }
@@ -125,7 +125,7 @@ func (dr *DatabaseRequester) Delete(ctx context.Context, name string, options *D
 // FIXME: test on localhost
 func (dr *DatabaseRequester) IsExists(ctx context.Context, name string) (bool, error) {
 	var res Database
-	sl := dr.Client.C.Head(dr.getOrganizationDBUrl(name, "db"))
+	sl := dr.Client.C.Head(dr.getOrganizationDBURL(name, "db"))
 	if _, err := doRequest(ctx, sl, &res); err != nil {
 		if errors.Is(err, srverror.TerminusError{}) && err.(srverror.TerminusError).HTTPCode == 404 {
 			return false, nil
@@ -150,7 +150,7 @@ func (dr *DatabaseRequester) Update(ctx context.Context, db Database, options *D
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
-	sl := dr.Client.C.BodyJSON(options).Put(dr.getOrganizationDBUrl(db.Name, "db"))
+	sl := dr.Client.C.BodyJSON(options).Put(dr.getOrganizationDBURL(db.Name, "db"))
 	_, err = doRequest(ctx, sl, nil)
 	return
 }
@@ -168,14 +168,14 @@ func (dr *DatabaseRequester) Clone(ctx context.Context, newName string, options 
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
-	sl := dr.Client.C.BodyJSON(options).Put(dr.getOrganizationDBUrl(newName, "clone"))
+	sl := dr.Client.C.BodyJSON(options).Put(dr.getOrganizationDBURL(newName, "clone"))
 	_, err = doRequest(ctx, sl, nil)
 	return
 }
 
 // FIXME: additionally test on localhost, figure out what prefixes are
 func (dr *DatabaseRequester) Prefixes(ctx context.Context, buf *Prefix, dbName string) error {
-	sl := dr.Client.C.Get(dr.getOrganizationDBUrl(dbName, "prefixes"))
+	sl := dr.Client.C.Get(dr.getOrganizationDBURL(dbName, "prefixes"))
 	_, err := doRequest(ctx, sl, buf)
 	return err
 }
@@ -189,13 +189,13 @@ func (dr *DatabaseRequester) CommitLog(ctx context.Context, buf *[]Commit, name 
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
-	sl := dr.Client.C.QueryStruct(options).Get(dr.getOrganizationDBUrl(name, "log"))
+	sl := dr.Client.C.QueryStruct(options).Get(dr.getOrganizationDBURL(name, "log"))
 	_, err = doRequest(ctx, sl, buf)
 	return
 }
 
 func (dr *DatabaseRequester) Optimize(ctx context.Context, dbName string) error {
-	sl := dr.Client.C.Post(dr.getOrganizationDBUrl(dbName, "optimize"))
+	sl := dr.Client.C.Post(dr.getOrganizationDBURL(dbName, "optimize"))
 	if _, err := doRequest(ctx, sl, nil); err != nil { // TODO: There is ok response also
 		return err
 	}
@@ -203,7 +203,7 @@ func (dr *DatabaseRequester) Optimize(ctx context.Context, dbName string) error 
 	return nil
 }
 
-func (dr *DatabaseRequester) getOrganizationDBUrl(dbName, action string) string {
+func (dr *DatabaseRequester) getOrganizationDBURL(dbName, action string) string {
 	switch v := dr.path.(type) {
 	case OrganizationPath:
 		return DatabasePath{
