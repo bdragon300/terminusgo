@@ -1,5 +1,7 @@
 package objects
 
+import "context"
+
 type Remote struct {
 	Name string `json:"name"`
 	URL  string `json:"url"`
@@ -13,12 +15,12 @@ func (ri *RemoteIntroducer) OnDatabase(path DatabasePath) *RemoteRequester {
 
 type RemoteRequester BaseRequester
 
-func (rr *RemoteRequester) ListAll(buf *[]Remote) error {
+func (rr *RemoteRequester) ListAll(ctx context.Context, buf *[]Remote) error {
 	var httpResponse struct {
 		RemoteNames []Remote `json:"api:remote_names"` // FIXME: figure out the real field signature
 	}
 	sl := rr.Client.C.Get(rr.path.GetPath("remote"))
-	if _, err := doRequest(sl, &httpResponse); err != nil {
+	if _, err := doRequest(ctx, sl, &httpResponse); err != nil {
 		return err
 	}
 
@@ -27,7 +29,7 @@ func (rr *RemoteRequester) ListAll(buf *[]Remote) error {
 }
 
 // TODO: test on localhost
-func (rr *RemoteRequester) Get(buf *Remote, name string) error {
+func (rr *RemoteRequester) Get(ctx context.Context, buf *Remote, name string) error {
 	query := struct {
 		RemoteName string `url:"remote_name"`
 	}{name}
@@ -37,7 +39,7 @@ func (rr *RemoteRequester) Get(buf *Remote, name string) error {
 		RemoteURL  string `json:"remote_url"`
 	}
 	sl := rr.Client.C.QueryStruct(query).Get(rr.path.GetPath("remote"))
-	if _, err := doRequest(sl, &httpResponse); err != nil {
+	if _, err := doRequest(ctx, sl, &httpResponse); err != nil {
 		return err
 	}
 
@@ -53,7 +55,7 @@ type RemoteCreateOptions struct {
 	RemoteLocation string `json:"remote_location" validate:"required,uri" default:"http://example.com/user/test_db"`
 }
 
-func (rr *RemoteRequester) Create(name string, options *RemoteCreateOptions) (err error) {
+func (rr *RemoteRequester) Create(ctx context.Context, name string, options *RemoteCreateOptions) (err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
@@ -62,7 +64,7 @@ func (rr *RemoteRequester) Create(name string, options *RemoteCreateOptions) (er
 		RemoteLocation string `json:"remote_location"`
 	}{*options, name}
 	sl := rr.Client.C.BodyJSON(body).Post(rr.path.GetPath("remote")) // FIXME: figure out if such URL is enough
-	if _, err = doRequest(sl, nil); err != nil {
+	if _, err = doRequest(ctx, sl, nil); err != nil {
 		return err
 	}
 	return
@@ -72,7 +74,7 @@ type RemoteUpdateOptions struct {
 	RemoteLocation string `json:"remote_location" validate:"required,uri" default:"http://example.com/user/test_db"`
 }
 
-func (rr *RemoteRequester) Update(name string, options *RemoteUpdateOptions) (err error) {
+func (rr *RemoteRequester) Update(ctx context.Context, name string, options *RemoteUpdateOptions) (err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
@@ -81,18 +83,18 @@ func (rr *RemoteRequester) Update(name string, options *RemoteUpdateOptions) (er
 		RemoteLocation string `json:"remote_location"`
 	}{*options, name}
 	sl := rr.Client.C.BodyJSON(body).Put(rr.path.GetPath("remote")) // FIXME: figure out if such URL is enough
-	if _, err = doRequest(sl, nil); err != nil {
+	if _, err = doRequest(ctx, sl, nil); err != nil {
 		return err
 	}
 	return
 }
 
-func (rr *RemoteRequester) Delete(name string) error {
+func (rr *RemoteRequester) Delete(ctx context.Context, name string) error {
 	query := struct {
 		RemoteName string `url:"remote_name"`
 	}{name}
 	sl := rr.Client.C.QueryStruct(query).Delete(rr.path.GetPath("remote")) // FIXME: figure out if such URL is enough
-	if _, err := doRequest(sl, nil); err != nil {
+	if _, err := doRequest(ctx, sl, nil); err != nil {
 		return err
 	}
 

@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"context"
 	"strings"
 
 	"github.com/bdragon300/terminusgo/objects"
@@ -59,11 +60,11 @@ type GetDiffOptions struct {
 // TODO: refactor the code below
 // FIXME: figure out if GetDiff* methods must be moved to Branch
 // https://terminusdb.com/docs/guides/reference-guides/json-diff-and-patch#diff
-func GetDiffObjects(client *objects.Client, buf *Diff, before, after any, options *GetDiffOptions) error {
+func GetDiffObjects(ctx context.Context, client *objects.Client, buf *Diff, before, after any, options *GetDiffOptions) error {
 	if options == nil {
 		options = new(GetDiffOptions)
 	}
-	return RequestDiff(client, buf, Request{
+	return RequestDiff(ctx, client, buf, Request{
 		Before:    before,
 		After:     after,
 		Keep:      options.Keep,
@@ -71,11 +72,11 @@ func GetDiffObjects(client *objects.Client, buf *Diff, before, after any, option
 	})
 }
 
-func GetDiffObjectAndDocumentRevision(client *objects.Client, buf *Diff, beforeVersion string, after any, documentID string, options *GetDiffOptions) error {
+func GetDiffObjectAndDocumentRevision(ctx context.Context, client *objects.Client, buf *Diff, beforeVersion string, after any, documentID string, options *GetDiffOptions) error {
 	if options == nil {
 		options = new(GetDiffOptions)
 	}
-	return RequestDiff(client, buf, Request{
+	return RequestDiff(ctx, client, buf, Request{
 		After:             after,
 		BeforeDataVersion: beforeVersion,
 		DocumentID:        documentID,
@@ -84,11 +85,11 @@ func GetDiffObjectAndDocumentRevision(client *objects.Client, buf *Diff, beforeV
 	})
 }
 
-func GetDiffDocumentRevisions(client *objects.Client, buf *Diff, beforeVersion, afterVersion string, documentID string, options *GetDiffOptions) error {
+func GetDiffDocumentRevisions(ctx context.Context, client *objects.Client, buf *Diff, beforeVersion, afterVersion string, documentID string, options *GetDiffOptions) error {
 	if options == nil {
 		options = new(GetDiffOptions)
 	}
-	return RequestDiff(client, buf, Request{
+	return RequestDiff(ctx, client, buf, Request{
 		BeforeDataVersion: beforeVersion,
 		AfterDataVersion:  afterVersion,
 		DocumentID:        documentID,
@@ -97,11 +98,11 @@ func GetDiffDocumentRevisions(client *objects.Client, buf *Diff, beforeVersion, 
 	})
 }
 
-func GetDiffAllDocumentsRevisions(client *objects.Client, buf *Diff, beforeVersion, afterVersion string, options *GetDiffOptions) error {
+func GetDiffAllDocumentsRevisions(ctx context.Context, client *objects.Client, buf *Diff, beforeVersion, afterVersion string, options *GetDiffOptions) error {
 	if options == nil {
 		options = new(GetDiffOptions)
 	}
-	return RequestDiff(client, buf, Request{
+	return RequestDiff(ctx, client, buf, Request{
 		BeforeDataVersion: beforeVersion,
 		AfterDataVersion:  afterVersion,
 		Keep:              options.Keep,
@@ -119,11 +120,12 @@ type Request struct {
 	CopyValue         bool           `json:"copy_value,omitempty"`
 }
 
-func RequestDiff(client *objects.Client, buf *Diff, body Request) error {
+func RequestDiff(ctx context.Context, client *objects.Client, buf *Diff, body Request) error {
 	// FIXME: figure out response schema
 	sl := client.C.BodyJSON(body).Post("diff") // FIXME: maybe this can be a branch path?
 	errTerminus := new(srverror.TerminusError)
 	req, err := sl.Request()
+	req = req.WithContext(ctx)
 	if err != nil {
 		return err
 	}
@@ -139,14 +141,18 @@ func RequestDiff(client *objects.Client, buf *Diff, body Request) error {
 	return nil
 }
 
-func GetPatchedObject(client *objects.Client, buf any, before any, diff *Diff) error {
+func GetPatchedObject(ctx context.Context, client *objects.Client, buf any, before any, diff *Diff) error {
 	body := struct {
 		Before any   `json:"before"`
 		Patch  *Diff `json:"patch"`
 	}{before, diff} // FIXME: check if this is a Document actually
 	sl := client.C.BodyJSON(body).Post("patch") // FIXME: maybe this can be a branch path?
 	errTerminus := new(srverror.TerminusError)
-	resp, err := sl.Receive(buf, errTerminus)
+	req, err := sl.Request()
+	if err != nil {
+		return err
+	}
+	resp, err := sl.Do(req.WithContext(ctx), buf, errTerminus)
 	if err != nil {
 		return err
 	}

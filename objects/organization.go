@@ -1,6 +1,7 @@
 package objects
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 )
@@ -15,31 +16,31 @@ type Organization struct {
 // TODO: test on local instance
 type OrganizationRequester BaseRequester
 
-func (or *OrganizationRequester) ListAll(buf *[]Organization) error {
+func (or *OrganizationRequester) ListAll(ctx context.Context, buf *[]Organization) error {
 	sl := or.Client.C.Get("organizations")
-	if _, err := doRequest(sl, buf); err != nil {
+	if _, err := doRequest(ctx, sl, buf); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (or *OrganizationRequester) Get(buf *Organization, name string) error {
+func (or *OrganizationRequester) Get(ctx context.Context, buf *Organization, name string) error {
 	sl := or.Client.C.Get(or.getURL(name))
-	if _, err := doRequest(sl, buf); err != nil {
+	if _, err := doRequest(ctx, sl, buf); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (or *OrganizationRequester) Create(name string) error {
+func (or *OrganizationRequester) Create(ctx context.Context, name string) error {
 	sl := or.Client.C.Post(or.getURL(name))
-	_, err := doRequest(sl, nil)
+	_, err := doRequest(ctx, sl, nil)
 	return err
 }
 
-func (or *OrganizationRequester) Delete(name string) error {
+func (or *OrganizationRequester) Delete(ctx context.Context, name string) error {
 	sl := or.Client.C.Delete(or.getURL(name))
-	_, err := doRequest(sl, nil)
+	_, err := doRequest(ctx, sl, nil)
 	return err
 }
 

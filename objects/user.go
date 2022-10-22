@@ -1,6 +1,7 @@
 package objects
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 )
@@ -33,16 +34,16 @@ func (ui *UserIntroducer) OnServer() *UserRequester {
 type UserRequester BaseRequester
 
 // TODO: test on localhost
-func (ur *UserRequester) ListAll(buf *[]User) error {
+func (ur *UserRequester) ListAll(ctx context.Context, buf *[]User) error {
 	sl := ur.Client.C.Get(ur.getURL("")) // FIXME: hack, make smth like getListUrl
-	_, err := doRequest(sl, buf)
+	_, err := doRequest(ctx, sl, buf)
 	return err
 }
 
 // TODO: test on localhost
-func (ur *UserRequester) Get(buf *User, name string) error {
+func (ur *UserRequester) Get(ctx context.Context, buf *User, name string) error {
 	sl := ur.Client.C.Get(ur.getURL(name))
-	_, err := doRequest(sl, buf)
+	_, err := doRequest(ctx, sl, buf)
 	return err
 }
 
@@ -51,7 +52,7 @@ type UserCreateOptions struct {
 }
 
 // TODO: test on localhost
-func (ur *UserRequester) Create(name string, options *UserCreateOptions) (err error) {
+func (ur *UserRequester) Create(ctx context.Context, name string, options *UserCreateOptions) (err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
@@ -60,20 +61,20 @@ func (ur *UserRequester) Create(name string, options *UserCreateOptions) (err er
 		Name string `json:"name"`
 	}{*options, name}
 	sl := ur.Client.C.BodyJSON(body).Post("users")
-	if _, err = doRequest(sl, nil); err != nil { // TODO: there is ok response
+	if _, err = doRequest(ctx, sl, nil); err != nil { // TODO: there is ok response
 		return err
 	}
 	return
 }
 
 // TODO: test on localhost
-func (ur *UserRequester) UpdatePassword(name, password string) error {
+func (ur *UserRequester) UpdatePassword(ctx context.Context, name, password string) error {
 	body := struct {
 		Name     string `json:"name"`
 		Password string `json:"password"`
 	}{name, password}
 	sl := ur.Client.C.BodyJSON(body).Put("users")
-	if _, err := doRequest(sl, nil); err != nil { // TODO: there is ok response
+	if _, err := doRequest(ctx, sl, nil); err != nil { // TODO: there is ok response
 		return err
 	}
 
@@ -87,7 +88,7 @@ type UserUpdateCapabilitiesOptions struct {
 }
 
 // TODO: test on localhost
-func (ur *UserRequester) UpdateCapabilities(name string, options *UserUpdateCapabilitiesOptions) (err error) {
+func (ur *UserRequester) UpdateCapabilities(ctx context.Context, name string, options *UserUpdateCapabilitiesOptions) (err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
@@ -96,7 +97,7 @@ func (ur *UserRequester) UpdateCapabilities(name string, options *UserUpdateCapa
 		User string `json:"user"`
 	}{*options, name}
 	sl := ur.Client.C.BodyJSON(body).Post("capabilities")
-	if _, err = doRequest(sl, nil); err != nil { // TODO: there is ok response
+	if _, err = doRequest(ctx, sl, nil); err != nil { // TODO: there is ok response
 		return err
 	}
 

@@ -1,6 +1,7 @@
 package objects
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -35,14 +36,13 @@ type ObjectPathProvider interface {
 	GetPath(action string) string
 }
 
-func doRequest(sling *sling.Sling, okResponse any) (*http.Response, error) {
+func doRequest(ctx context.Context, sling *sling.Sling, okResponse any) (*http.Response, error) {
 	req, err := sling.Request()
-	fmt.Printf("%s | %s", req.URL, req.Body)
 	if err != nil {
 		return nil, err
 	}
 	errTerminus := new(srverror.TerminusError)
-	resp, err := sling.Do(req, okResponse, errTerminus) // FIXME: failResponse
+	resp, err := sling.Do(req.WithContext(ctx), okResponse, errTerminus)
 	if err != nil {
 		return nil, err
 	}

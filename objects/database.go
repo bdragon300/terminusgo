@@ -1,6 +1,7 @@
 package objects
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -43,7 +44,7 @@ func (di *DatabaseIntroducer) OnServer() *DatabaseRequester {
 type DatabaseRequester BaseRequester
 
 // FIXME: test on localhost
-func (dr *DatabaseRequester) ListAll(buf *[]Database) error {
+func (dr *DatabaseRequester) ListAll(ctx context.Context, buf *[]Database) error {
 	var URL string
 	switch path := dr.path.(type) {
 	case UserPath:
@@ -60,7 +61,7 @@ func (dr *DatabaseRequester) ListAll(buf *[]Database) error {
 		panic("Unknown Path type")
 	}
 	sl := dr.Client.C.Get(URL)
-	if _, err := doRequest(sl, buf); err != nil {
+	if _, err := doRequest(ctx, sl, buf); err != nil {
 		return err
 	}
 	return nil
@@ -72,12 +73,12 @@ type DatabaseGetOptions struct {
 }
 
 // FIXME: test additionally on localhost
-func (dr *DatabaseRequester) Get(buf *Database, name string, options *DatabaseGetOptions) (err error) {
+func (dr *DatabaseRequester) Get(ctx context.Context, buf *Database, name string, options *DatabaseGetOptions) (err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
 	sl := dr.Client.C.QueryStruct(options).Get(dr.getOrganizationDBUrl(name, "db"))
-	if _, err = doRequest(sl, buf); err != nil {
+	if _, err = doRequest(ctx, sl, buf); err != nil {
 		return err
 	}
 
@@ -98,12 +99,12 @@ type DatabaseCreateOptions struct {
 }
 
 // FIXME: test on localhost
-func (dr *DatabaseRequester) Create(db Database, options *DatabaseCreateOptions) (err error) {
+func (dr *DatabaseRequester) Create(ctx context.Context, db Database, options *DatabaseCreateOptions) (err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
 	sl := dr.Client.C.BodyJSON(options).Post(dr.getOrganizationDBUrl(db.Name, "db"))
-	_, err = doRequest(sl, nil)
+	_, err = doRequest(ctx, sl, nil)
 	return
 }
 
@@ -112,20 +113,20 @@ type DatabaseDeleteOptions struct {
 }
 
 // FIXME: test on localhost
-func (dr *DatabaseRequester) Delete(name string, options *DatabaseDeleteOptions) (err error) {
+func (dr *DatabaseRequester) Delete(ctx context.Context, name string, options *DatabaseDeleteOptions) (err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
 	sl := dr.Client.C.QueryStruct(options).Delete(dr.getOrganizationDBUrl(name, "db"))
-	_, err = doRequest(sl, nil)
+	_, err = doRequest(ctx, sl, nil)
 	return
 }
 
 // FIXME: test on localhost
-func (dr *DatabaseRequester) IsExists(name string) (bool, error) {
+func (dr *DatabaseRequester) IsExists(ctx context.Context, name string) (bool, error) {
 	var res Database
 	sl := dr.Client.C.Head(dr.getOrganizationDBUrl(name, "db"))
-	if _, err := doRequest(sl, &res); err != nil {
+	if _, err := doRequest(ctx, sl, &res); err != nil {
 		if errors.Is(err, srverror.TerminusError{}) && err.(srverror.TerminusError).HTTPCode == 404 {
 			return false, nil
 		}
@@ -145,12 +146,12 @@ type DatabaseUpdateOptions struct {
 }
 
 // FIXME: test on localhost
-func (dr *DatabaseRequester) Update(db Database, options *DatabaseUpdateOptions) (err error) {
+func (dr *DatabaseRequester) Update(ctx context.Context, db Database, options *DatabaseUpdateOptions) (err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
 	sl := dr.Client.C.BodyJSON(options).Put(dr.getOrganizationDBUrl(db.Name, "db"))
-	_, err = doRequest(sl, nil)
+	_, err = doRequest(ctx, sl, nil)
 	return
 }
 
@@ -162,20 +163,20 @@ type DatabaseCloneOptions struct {
 }
 
 // FIXME: test on localhost
-func (dr *DatabaseRequester) Clone(newName string, options *DatabaseCloneOptions) (err error) {
+func (dr *DatabaseRequester) Clone(ctx context.Context, newName string, options *DatabaseCloneOptions) (err error) {
 	// TODO: requires to execute on an organization instead of on a user, implement such mechanism of separation
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
 	sl := dr.Client.C.BodyJSON(options).Put(dr.getOrganizationDBUrl(newName, "clone"))
-	_, err = doRequest(sl, nil)
+	_, err = doRequest(ctx, sl, nil)
 	return
 }
 
 // FIXME: additionally test on localhost, figure out what prefixes are
-func (dr *DatabaseRequester) Prefixes(buf *Prefix, dbName string) error {
+func (dr *DatabaseRequester) Prefixes(ctx context.Context, buf *Prefix, dbName string) error {
 	sl := dr.Client.C.Get(dr.getOrganizationDBUrl(dbName, "prefixes"))
-	_, err := doRequest(sl, buf)
+	_, err := doRequest(ctx, sl, buf)
 	return err
 }
 
@@ -184,18 +185,18 @@ type DatabaseCommitLogOptions struct {
 	Start int `url:"start,omitempty" default:"0"`
 }
 
-func (dr *DatabaseRequester) CommitLog(buf *[]Commit, name string, options *DatabaseCommitLogOptions) (err error) {
+func (dr *DatabaseRequester) CommitLog(ctx context.Context, buf *[]Commit, name string, options *DatabaseCommitLogOptions) (err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
 	sl := dr.Client.C.QueryStruct(options).Get(dr.getOrganizationDBUrl(name, "log"))
-	_, err = doRequest(sl, buf)
+	_, err = doRequest(ctx, sl, buf)
 	return
 }
 
-func (dr *DatabaseRequester) Optimize(dbName string) error {
+func (dr *DatabaseRequester) Optimize(ctx context.Context, dbName string) error {
 	sl := dr.Client.C.Post(dr.getOrganizationDBUrl(dbName, "optimize"))
-	if _, err := doRequest(sl, nil); err != nil { // TODO: There is ok response also
+	if _, err := doRequest(ctx, sl, nil); err != nil { // TODO: There is ok response also
 		return err
 	}
 

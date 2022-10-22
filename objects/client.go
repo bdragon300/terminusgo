@@ -1,6 +1,7 @@
 package objects
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -68,9 +69,9 @@ func (c *Client) Roles() *RoleRequester {
 	return &RoleRequester{Client: c}
 }
 
-func (c *Client) Ping() error {
+func (c *Client) Ping(ctx context.Context) error {
 	sl := c.C.Get("ok")
-	if _, err := doRequest(sl, nil); err != nil {
+	if _, err := doRequest(ctx, sl, nil); err != nil {
 		return err
 	}
 	return nil
@@ -88,13 +89,13 @@ type TerminusVersionInfo struct {
 	TerminusDBStore VersionInfo `json:"terminusdb_store"`
 }
 
-func (c *Client) VersionInfo(buf *TerminusVersionInfo) error {
+func (c *Client) VersionInfo(ctx context.Context, buf *TerminusVersionInfo) error {
 	fmt.Println(buf == nil)
 	var response struct {
 		Info *TerminusVersionInfo `json:"api:info"`
 	}
 	sl := c.C.Get("info")
-	if _, err := doRequest(sl, &response); err != nil {
+	if _, err := doRequest(ctx, sl, &response); err != nil {
 		return err
 	}
 	fmt.Printf("%+v", response)

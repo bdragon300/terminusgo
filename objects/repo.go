@@ -1,6 +1,7 @@
 package objects
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 )
@@ -24,22 +25,22 @@ type RepoFetchOptions struct {
 }
 
 // TODO: this relates either to repo or to branch, figure out
-func (rr *RepoRequester) Fetch(repoID string, options *RepoFetchOptions) (err error) {
+func (rr *RepoRequester) Fetch(ctx context.Context, repoID string, options *RepoFetchOptions) (err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return err
 	}
 	URL := rr.getURL(repoID, "fetch")
 	sl := rr.Client.C.Set("AUTHORIZATION_REMOTE", options.RemoteAuthorization).Post(URL)
-	if _, err = doRequest(sl, nil); err != nil { // FIXME: there is ok response
+	if _, err = doRequest(ctx, sl, nil); err != nil { // FIXME: there is ok response
 		return err
 	}
 
 	return nil
 }
 
-func (rr *RepoRequester) Optimize(repoID string) error {
+func (rr *RepoRequester) Optimize(ctx context.Context, repoID string) error {
 	sl := rr.Client.C.Post(rr.getURL(repoID, "optimize"))
-	if _, err := doRequest(sl, nil); err != nil { // TODO: There is ok response also
+	if _, err := doRequest(ctx, sl, nil); err != nil { // TODO: There is ok response also
 		return err
 	}
 
