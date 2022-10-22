@@ -6,7 +6,7 @@ require github.com/dghubble/sling v1.4.0
 
 require github.com/creasty/defaults v1.6.0
 
-require github.com/mitchellh/mapstructure v1.5.0 // indirect
+require github.com/mitchellh/mapstructure v1.5.0
 
 require (
 	github.com/go-playground/locales v0.14.0 // indirect
