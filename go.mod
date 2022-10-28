@@ -8,6 +8,8 @@ require github.com/creasty/defaults v1.6.0
 
 require github.com/mitchellh/mapstructure v1.5.0
 
+require github.com/jinzhu/copier v0.3.5
+
 require (
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect

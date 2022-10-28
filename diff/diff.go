@@ -24,13 +24,13 @@ const (
 type FieldDiff struct {
 	FieldName string    `json:"field_name"`
 	Op        Operation `json:"@op" mapstructure:"@op"`
-	Before    *string   `json:"@before"  mapstructure:"@before"`
-	After     *string   `json:"@after"  mapstructure:"@after"`
-	Patch     *string   `json:"@patch"  mapstructure:"@patch"`
-	Rest      *string   `json:"@rest"  mapstructure:"@rest"`
-	To        *string   `json:"@to"  mapstructure:"@to"`
+	Before    string    `json:"@before"  mapstructure:"@before"`
+	After     string    `json:"@after"  mapstructure:"@after"`
+	Patch     string    `json:"@patch"  mapstructure:"@patch"`
+	Rest      string    `json:"@rest"  mapstructure:"@rest"`
+	To        string    `json:"@to"  mapstructure:"@to"`
 	// TODO: also figure out how to handle ModifyTable
-	// TODO: also which fields should be there or in another kind of diff?
+	// TODO: also which fields should be here or in another kind of diff?
 }
 
 type Diff map[string]any
