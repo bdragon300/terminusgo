@@ -1,4 +1,4 @@
-package objects
+package rest
 
 import "context"
 

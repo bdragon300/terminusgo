@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/bdragon300/terminusgo/objects"
+	"github.com/bdragon300/terminusgo/rest"
 	"github.com/bdragon300/terminusgo/srverror"
 	"github.com/mitchellh/mapstructure"
 )
@@ -60,7 +60,7 @@ type GetDiffOptions struct {
 // TODO: refactor the code below
 // FIXME: figure out if GetDiff* methods must be moved to Branch
 // https://terminusdb.com/docs/guides/reference-guides/json-diff-and-patch#diff
-func GetDiffObjects(ctx context.Context, client *objects.Client, buf *Diff, before, after any, options *GetDiffOptions) error {
+func GetDiffObjects(ctx context.Context, client *rest.Client, buf *Diff, before, after any, options *GetDiffOptions) error {
 	if options == nil {
 		options = new(GetDiffOptions)
 	}
@@ -72,7 +72,7 @@ func GetDiffObjects(ctx context.Context, client *objects.Client, buf *Diff, befo
 	})
 }
 
-func GetDiffObjectAndDocumentRevision(ctx context.Context, client *objects.Client, buf *Diff, beforeVersion string, after any, documentID string, options *GetDiffOptions) error {
+func GetDiffObjectAndDocumentRevision(ctx context.Context, client *rest.Client, buf *Diff, beforeVersion string, after any, documentID string, options *GetDiffOptions) error {
 	if options == nil {
 		options = new(GetDiffOptions)
 	}
@@ -85,7 +85,7 @@ func GetDiffObjectAndDocumentRevision(ctx context.Context, client *objects.Clien
 	})
 }
 
-func GetDiffDocumentRevisions(ctx context.Context, client *objects.Client, buf *Diff, beforeVersion, afterVersion string, documentID string, options *GetDiffOptions) error {
+func GetDiffDocumentRevisions(ctx context.Context, client *rest.Client, buf *Diff, beforeVersion, afterVersion string, documentID string, options *GetDiffOptions) error {
 	if options == nil {
 		options = new(GetDiffOptions)
 	}
@@ -98,7 +98,7 @@ func GetDiffDocumentRevisions(ctx context.Context, client *objects.Client, buf *
 	})
 }
 
-func GetDiffAllDocumentsRevisions(ctx context.Context, client *objects.Client, buf *Diff, beforeVersion, afterVersion string, options *GetDiffOptions) error {
+func GetDiffAllDocumentsRevisions(ctx context.Context, client *rest.Client, buf *Diff, beforeVersion, afterVersion string, options *GetDiffOptions) error {
 	if options == nil {
 		options = new(GetDiffOptions)
 	}
@@ -120,7 +120,7 @@ type Request struct {
 	CopyValue         bool           `json:"copy_value,omitempty"`
 }
 
-func RequestDiff(ctx context.Context, client *objects.Client, buf *Diff, body Request) error {
+func RequestDiff(ctx context.Context, client *rest.Client, buf *Diff, body Request) error {
 	// FIXME: figure out response schema
 	sl := client.C.BodyJSON(body).Post("diff") // FIXME: maybe this can be a branch path?
 	errTerminus := new(srverror.TerminusError)
@@ -141,7 +141,7 @@ func RequestDiff(ctx context.Context, client *objects.Client, buf *Diff, body Re
 	return nil
 }
 
-func GetPatchedObject(ctx context.Context, client *objects.Client, buf any, before any, diff *Diff) error {
+func GetPatchedObject(ctx context.Context, client *rest.Client, buf any, before any, diff *Diff) error {
 	body := struct {
 		Before any   `json:"before"`
 		Patch  *Diff `json:"patch"`

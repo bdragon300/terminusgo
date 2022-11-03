@@ -1,4 +1,4 @@
-package objects
+package rest
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 )
 
-// TODO: move from objects to another place
+// TODO: move from rest to another place
 type Client struct {
 	C          *sling.Sling
 	implClient *http.Client
