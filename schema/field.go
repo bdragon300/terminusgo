@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 )
 
@@ -27,48 +26,10 @@ type Field struct {
 	Type           FieldType `json:"@type,omitempty" mapstructure:"@type,omitempty"`
 	Class          string    `json:"@class,omitempty" mapstructure:"@class,omitempty"`                     // For all types except Foreign
 	ID             string    `json:"@id,omitempty" mapstructure:"@id,omitempty"`                           // For Foreign type
-	Cardinality    uint      `json:"@cardinality,omitempty" mapstructure:"@cardinality,omitempty"`         //  For Set type
+	Cardinality    uint      `json:"@cardinality,omitempty" mapstructure:"@cardinality,omitempty"`         // For Set type
 	MinCardinality uint      `json:"@min_cardinality,omitempty" mapstructure:"@min_cardinality,omitempty"` // For Set type
 	MaxCardinality uint      `json:"@max_cardinality,omitempty" mapstructure:"@max_cardinality,omitempty"` // For Set type
 	Dimensions     uint      `json:"@dimensions,omitempty" mapstructure:"@dimensions,omitempty"`           // For Array type
-}
-
-// https://www.w3.org/TR/xmlschema-2/#built-in-datatypes
-var primitiveTypeClasses = map[reflect.Kind]string{
-	reflect.Bool:    "xsd:boolean",
-	reflect.Int:     "xsd:integer",
-	reflect.Int8:    "xsd:byte",
-	reflect.Int16:   "xsd:short",
-	reflect.Int32:   "xsd:int",
-	reflect.Int64:   "xsd:long",
-	reflect.Uint:    "xsd:nonNegativeInteger",
-	reflect.Uint8:   "xsd:unsignedByte",
-	reflect.Uint16:  "xsd:unsignedShort",
-	reflect.Uint32:  "xsd:unsignedInt",
-	reflect.Uint64:  "xsd:unsignedLong",
-	reflect.Float32: "xsd:float",
-	reflect.Float64: "xsd:double",
-	reflect.Map:     "sys:JSON",
-	reflect.String:  "xsd:string",
-	// TODO: sys.Unit ?
-}
-
-var complexTypeClasses map[reflect.Type]string
-
-func init() {
-	complexTypeClasses = map[reflect.Type]string{
-		reflect.TypeOf(time.Duration(0)): "xsd:duration",
-		reflect.TypeOf(time.Time{}):      "xsd:dateTime",
-		reflect.TypeOf([]byte{}):         "xsd:base64Binary",
-	}
-}
-
-func DefineTypeClass(goType reflect.Type, terminusClass string) {
-	complexTypeClasses[goType] = terminusClass
-}
-
-func DefinePrimitiveTypeClass(goKind reflect.Kind, terminusClass string) {
-	primitiveTypeClasses[goKind] = terminusClass
 }
 
 func analyzeModel(mdlTyp reflect.Type) (parents []reflect.Type, grandparents []reflect.Type, fields map[string]Field) {
@@ -86,7 +47,7 @@ func analyzeModel(mdlTyp reflect.Type) (parents []reflect.Type, grandparents []r
 			}
 			// Collect fields from all (possibly nested) parent models
 			if fldTyp.Kind() == reflect.Struct {
-				parents = append(parents, fldTyp)
+				parents = append(parents, fldTyp) // FIXME: exclude AbstractModel, SubDocumentModel, etc.
 				ps, gps, fs := analyzeModel(fldTyp)
 				grandparents = append(append(grandparents, gps...), ps...)
 				for k, v := range fs {
@@ -127,9 +88,7 @@ func getFieldSchema(field reflect.StructField) (Field, bool) {
 	if schema.Dimensions > 1 {
 		schema.Type = FieldTypeArray
 	}
-	if t, ok := complexTypeClasses[fltTyp]; ok {
-		schema.Class = t
-	} else if t, ok := primitiveTypeClasses[fltTyp.Kind()]; ok {
+	if t, ok := GetSchemaClass(fltTyp); ok {
 		schema.Class = t
 	} else if fltTyp.Kind() == reflect.Struct {
 		schema.Class = fltTyp.Name()
@@ -162,6 +121,7 @@ func parseTags(field reflect.StructField) (tags map[string]string) {
 }
 
 func applyTags(schema *Field, opts map[string]string) {
+	// TODO: add nooptional
 	if _, ok := opts["optional"]; ok {
 		schema.Type = FieldTypeOptional
 	}

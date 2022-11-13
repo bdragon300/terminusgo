@@ -38,6 +38,10 @@ type Class struct {
 type (
 	AbstractModel    struct{} // TODO: implement
 	SubDocumentModel struct{}
+	RawModel         struct {
+		Type string `mapstructure:"@type" json:"@type"` // TODO: implement
+	}
+	// TODO: implement Documentation
 )
 
 func GenerateClass(model any) (schema Class) {
