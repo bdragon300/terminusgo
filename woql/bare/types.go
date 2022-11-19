@@ -2,21 +2,21 @@ package bare
 
 import "github.com/bdragon300/terminusgo/woql/schema"
 
-func String(value string) schema.SimpleValue {
-	res := &schema.SimpleValue{}
-	res.SetValue(value)
+func String(value string) schema.Literal {
+	res := &schema.Literal{}
+	res.FromAnyValue(value)
 	return *res
 }
 
-func Boolean(value bool) schema.SimpleValue {
-	res := &schema.SimpleValue{}
-	res.SetValue(value)
+func Boolean(value bool) schema.Literal {
+	res := &schema.Literal{}
+	res.FromAnyValue(value)
 	return *res
 }
 
-func DateTime(value bool) schema.SimpleValue {
-	res := &schema.SimpleValue{}
-	res.SetValue(value)
+func DateTime(value bool) schema.Literal {
+	res := &schema.Literal{}
+	res.FromAnyValue(value)
 	return *res
 }
 

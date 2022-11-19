@@ -12,11 +12,19 @@ type NamedQuery struct {
 	Query Querier `json:"query" terminusgo:"type=Class,class=Query"`
 }
 
+func (n NamedQuery) GetSubQuery() Querier {
+	return n.Query
+}
+
 // TODO: not used
 type NamedParametricQuery struct {
 	Name       string   `json:"name"`
 	Parameters []string `json:"parameters"`
 	Query      Querier  `json:"query" terminusgo:"type=Class,class=Query"`
+}
+
+func (n NamedParametricQuery) GetSubQuery() Querier {
+	return n.Query
 }
 
 type Querier interface {
@@ -30,6 +38,12 @@ type Query struct {
 
 func (q Query) GetQuery() Querier {
 	return &q
+}
+
+func (q Query) QueryType() {}
+
+type SubQuerier interface {
+	GetSubQuery() Querier
 }
 
 type Path struct {
@@ -46,16 +60,28 @@ type Using struct {
 	Collection string  `json:"collection"`
 }
 
+func (n Using) GetSubQuery() Querier {
+	return n.SubQuery
+}
+
 type Select struct {
 	Query
 	SubQuery  Querier  `json:"query" terminusgo:"type=Class,class=Query"`
 	Variables []string `json:"variables"`
 }
 
+func (n Select) GetSubQuery() Querier {
+	return n.SubQuery
+}
+
 type Distinct struct {
 	Query
 	SubQuery  Querier  `json:"query" terminusgo:"type=Class,class=Query"`
 	Variables []string `json:"variables"`
+}
+
+func (n Distinct) GetSubQuery() Querier {
+	return n.SubQuery
 }
 
 type And struct {
@@ -74,10 +100,18 @@ type From struct {
 	Graph    string  `json:"graph"`
 }
 
+func (n From) GetSubQuery() Querier {
+	return n.SubQuery
+}
+
 type Into struct {
 	Query
 	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
 	Graph    string  `json:"graph"`
+}
+
+func (n Into) GetSubQuery() Querier {
+	return n.SubQuery
 }
 
 type Triple struct {
@@ -193,7 +227,7 @@ type QueryResource struct {
 
 // FIXME: hack to comply Querier, figure out why it is a part of query in python client, but in not in schema
 func (q QueryResource) GetQuery() Querier {
-	return q
+	return &q
 }
 
 // FIXME: figure out full list of options, what they mean and why they are used in python client
@@ -271,6 +305,11 @@ type If struct {
 	Else Querier `json:"else" terminusgo:"type=Class,class=Query"`
 }
 
+// TODO: implement somehow
+// func (n If) GetSubQuery() Querier {
+//	return n.SubQuery
+//}
+
 type Trim struct {
 	Query
 	Untrimmed DataValue `json:"untrimmed"`
@@ -305,6 +344,10 @@ type Greater struct {
 type Optional struct {
 	Query
 	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
+}
+
+func (n Optional) GetSubQuery() Querier {
+	return n.SubQuery
 }
 
 type LexicalKey struct {
@@ -385,10 +428,18 @@ type Start struct {
 	Start    uint    `json:"start"`
 }
 
+func (n Start) GetSubQuery() Querier {
+	return n.SubQuery
+}
+
 type Limit struct {
 	Query
 	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
 	Limit    uint    `json:"limit"`
+}
+
+func (n Limit) GetSubQuery() Querier {
+	return n.SubQuery
 }
 
 type Regexp struct {
@@ -408,12 +459,20 @@ type OrderBy struct {
 	Ordering []OrderTemplate `json:"ordering"`
 }
 
+func (n OrderBy) GetSubQuery() Querier {
+	return n.SubQuery
+}
+
 type GroupBy struct {
 	Query
 	Template Value    `json:"template"`
 	GroupBy  []string `json:"group_by"`
 	SubQuery Querier  `json:"query" terminusgo:"type=Class,class=Query"`
 	Grouped  Value    `json:"grouped"`
+}
+
+func (n GroupBy) GetSubQuery() Querier {
+	return n.SubQuery
 }
 
 type Length struct {
@@ -427,9 +486,17 @@ type Not struct {
 	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
 }
 
+func (n Not) GetSubQuery() Querier {
+	return n.SubQuery
+}
+
 type Once struct {
 	Query
 	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
+}
+
+func (n Once) GetSubQuery() Querier {
+	return n.SubQuery
 }
 
 type Immediately struct {
@@ -437,10 +504,18 @@ type Immediately struct {
 	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
 }
 
+func (n Immediately) GetSubQuery() Querier {
+	return n.SubQuery
+}
+
 type Count struct {
 	Query
 	SubQuery Querier   `json:"query" terminusgo:"type=Class,class=Query"`
 	Count    DataValue `json:"count"`
+}
+
+func (n Count) GetSubQuery() Querier {
+	return n.SubQuery
 }
 
 type Typecast struct {
@@ -477,6 +552,6 @@ type TypeOf struct {
 
 type Eval struct {
 	Query
-	Expression ArithmeticExpression `json:"expression"`
-	Result     ArithmeticValue      `json:"result"`
+	Expression ArithmeticExpressionType `json:"expression"`
+	Result     ArithmeticValue          `json:"result"`
 }

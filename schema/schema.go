@@ -9,7 +9,7 @@ import (
 
 type RawConverter interface {
 	FromRaw(RawItem) error
-	ToRaw(RawItem) error
+	ToRaw(RawItem) error // FIXME: maybe make parameter as pointer?
 }
 
 type ItemType string

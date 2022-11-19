@@ -23,13 +23,19 @@ type ArithmeticValue struct {
 	Variable string `json:"variable"`
 }
 
-func (v *ArithmeticValue) FromVariable(value string) {
+func (v *ArithmeticValue) FromVariableName(value string) {
 	v.Variable = value
 }
 
 func (v *ArithmeticValue) FromNumber(value any) {
-	newVal := &SimpleValue{}
-	newVal.SetValue(value)
+	newVal := &Literal{}
+	newVal.FromAnyValue(value)
+	v.Data = *newVal
+}
+
+func (v *ArithmeticValue) FromString(value string) {
+	newVal := &Literal{}
+	newVal.FromAnyValue(value)
 	v.Data = *newVal
 }
 

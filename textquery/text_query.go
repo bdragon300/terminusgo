@@ -44,7 +44,7 @@ func (sl *SyntaxListener) popAndInvoke() callResult {
 	if !ok {
 		panic("No such function '" + lastCall.fname + "'") // FIXME: output error
 	}
-	result := fn(woql.NewSimpleQuery(), lastCall.params)
+	result := fn(woql.NewSimpleQueryBuilder(), lastCall.params)
 	return result
 }
 
@@ -98,7 +98,7 @@ func (sl *SyntaxListener) ExitParam(ctx *grammar.ParamContext) {
 	}
 }
 
-func ParseWOQL(query string) (*woql.SimpleQueryBuilder, error) {
+func ParseWOQL(query string) (*woql.QueryBuilder, error) {
 	is := antlr.NewInputStream(query)
 	lexer := grammar.NewWoqlLexer(is)
 	tokStream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
@@ -106,7 +106,7 @@ func ParseWOQL(query string) (*woql.SimpleQueryBuilder, error) {
 	listener := &SyntaxListener{}
 	antlr.ParseTreeWalkerDefault.Walk(listener, parser.Query())
 
-	queryObj, ok := listener.last.(*woql.SimpleQueryBuilder)
+	queryObj, ok := listener.last.(*woql.QueryBuilder)
 	if !ok {
 		val := reflect.Indirect(reflect.ValueOf(queryObj))
 		return nil, fmt.Errorf("WOQL result must be a query object, got: %v", val.Type())

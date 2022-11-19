@@ -13,7 +13,7 @@ type Numbers interface {
 
 func Div[T1, T2 Numbers](left T1, right T2) schema.Div {
 	return schema.Div{
-		Left:  *ParseNumber(left, &schema.ArithmeticValue{}),
-		Right: *ParseNumber(right, &schema.ArithmeticValue{}),
+		Left:  *parseNumber(left, &schema.ArithmeticValue{}),
+		Right: *parseNumber(right, &schema.ArithmeticValue{}),
 	}
 }

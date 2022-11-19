@@ -3,6 +3,7 @@ package schema
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/bdragon300/terminusgo/schema"
 )
@@ -28,7 +29,7 @@ type Value struct {
 	Data       any                `json:"data" terminusgo:"class=xsd:anySimpleType"`
 }
 
-func (v *Value) FromVariable(value string) {
+func (v *Value) FromVariableName(value string) {
 	v.Variable = value
 }
 
@@ -43,7 +44,7 @@ type NodeValue struct {
 	Variable string `json:"variable"`
 }
 
-func (v *NodeValue) FromVariable(value string) {
+func (v *NodeValue) FromVariableName(value string) {
 	v.Variable = value
 }
 
@@ -59,8 +60,18 @@ type DataValue struct {
 	Variable string      `json:"variable"`
 }
 
-func (v *DataValue) FromVariable(value string) {
+func (v *DataValue) FromVariableName(value string) {
 	v.Variable = value
+}
+
+func (v *DataValue) FromString(value string) {
+	v.Data = value
+}
+
+func (v *DataValue) FromNumber(value any) {
+	newVal := &Literal{}
+	newVal.FromAnyValue(value)
+	v.Data = *newVal
 }
 
 type Indicator struct {
@@ -88,25 +99,25 @@ type FormatType string
 
 const FormatTypeCSV FormatType = "csv"
 
-type Order string
+type OrderDirection string
 
 const (
-	OrderAsc  Order = "asc"
-	OrderDesc Order = "desc"
+	OrderAscending  OrderDirection = "asc"
+	OrderDescending OrderDirection = "desc"
 )
 
 type OrderTemplate struct {
 	*schema.SubDocumentModel
-	Order    Order  `json:"order"`
-	Variable string `json:"variable"`
+	Order    OrderDirection `json:"order"`
+	Variable string         `json:"variable"`
 }
 
-type SimpleValue struct {
+type Literal struct {
 	schema.RawModel
 	Value any `json:"@value"`
 }
 
-func (s *SimpleValue) SetValue(value any) {
+func (s *Literal) FromAnyValue(value any) {
 	typ := reflect.ValueOf(value).Type()
 	if cls, ok := schema.GetSchemaClass(typ); ok {
 		s.RawModel = schema.RawModel{Type: cls}
@@ -120,4 +131,8 @@ func (s *SimpleValue) SetValue(value any) {
 		"Cannot determine schema type of value with type %T, "+
 			"maybe it's needed to define type (see schema.DefineTypeClass() or schema.DefinePrimitiveTypeClass)?", value,
 	))
+}
+
+func ValidateLiteralType(typeName string) bool {
+	return strings.HasPrefix(typeName, "xsd:") || strings.HasPrefix(typeName, "xdd:")
 }
