@@ -3,7 +3,6 @@ package schema
 import (
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/bdragon300/terminusgo/schema"
 )
@@ -33,8 +32,18 @@ func (v *Value) FromVariableName(value string) {
 	v.Variable = value
 }
 
-func (v *Value) FromString(value string) {
-	v.Node = value
+func (v *Value) FromString(value string, forceLiteral bool) {
+	if forceLiteral {
+		newVal := &Literal{}
+		newVal.FromAnyValue(value)
+		v.Data = *newVal
+	} else {
+		v.Node = value
+	}
+}
+
+func (v *Value) FromAnyValue(value any) {
+	// TODO: nested value parse (map, list, etc)
 }
 
 type NodeValue struct {
@@ -48,7 +57,7 @@ func (v *NodeValue) FromVariableName(value string) {
 	v.Variable = value
 }
 
-func (v *NodeValue) FromString(value string) {
+func (v *NodeValue) FromString(value string, _ bool) {
 	v.Node = value
 }
 
@@ -64,11 +73,17 @@ func (v *DataValue) FromVariableName(value string) {
 	v.Variable = value
 }
 
-func (v *DataValue) FromString(value string) {
-	v.Data = value
+func (v *DataValue) FromString(value string, forceLiteral bool) {
+	if forceLiteral {
+		newVal := &Literal{}
+		newVal.FromAnyValue(value)
+		v.Data = *newVal
+	} else {
+		v.Data = value
+	}
 }
 
-func (v *DataValue) FromNumber(value any) {
+func (v *DataValue) FromAnyValue(value any) {
 	newVal := &Literal{}
 	newVal.FromAnyValue(value)
 	v.Data = *newVal
@@ -92,12 +107,83 @@ type Source struct {
 	// TODO: type is TaggedUnion
 	*schema.SubDocumentModel
 	Post string `json:"post"`
+	File string `json:"file"` // File not in schema, but is actually used
 	URI  string `json:"uri"`
+}
+
+type FileOptions interface {
+	FileFormatType() FormatType
 }
 
 type FormatType string
 
-const FormatTypeCSV FormatType = "csv"
+const (
+	FormatTypeCSV    FormatType = "csv"
+	FormatTypeTurtle FormatType = "turtle"
+	FormatTypePanda  FormatType = "panda"
+)
+
+type CSVCase string
+
+const (
+	CSVCasePreserve CSVCase = "preserve"
+	CSVCaseUp       CSVCase = "up"
+	CSVCaseDown     CSVCase = "down"
+)
+
+// FileOptionsCSV is options list for reading CSV file by TerminusDB
+// For more info see https://www.swi-prolog.org/pldoc/man?predicate=csv//2
+type FileOptionsCSV struct {
+	Separator     string  `json:"separator,omitempty"`
+	IgnoreQuoutes bool    `json:"ignore_quoutes,omitempty"`
+	Strip         bool    `json:"strip,omitempty"`
+	SkipHeader    bool    `json:"skip_header"`
+	Convert       bool    `json:"convert"`
+	Case          CSVCase `json:"case,omitempty"`
+	Functor       string  `json:"functor,omitempty"`
+	Arity         uint    `json:"arity,omitempty"`
+	MatchArity    bool    `json:"match_arity"`
+}
+
+func (i FileOptionsCSV) FileFormatType() FormatType {
+	return FormatTypeCSV
+}
+
+type TurtleFormat string
+
+const (
+	TurtleFormatAuto   TurtleFormat = "auto"
+	TurtleFormatTurtle TurtleFormat = "turtle"
+	TurtleFormatTrig   TurtleFormat = "trig"
+)
+
+type TurtleResources string
+
+const (
+	TurtleResourcesURI TurtleResources = "uri"
+	TurtleResourcesIRI TurtleResources = "iri"
+)
+
+type TurtleOnError string
+
+const (
+	TurtleOnErrorWarning TurtleOnError = "warning"
+	TurtleOnErrorError   TurtleOnError = "error"
+)
+
+// FileOptionsTurtle is options list for reading CSV file by TerminusDB
+// For more info see https://www.swi-prolog.org/pldoc/man?predicate=rdf_read_turtle/3
+type FileOptionsTurtle struct {
+	BaseURL    string          `json:"base_url,omitempty"`
+	AnonPrefix string          `json:"anon_prefix,omitempty"`
+	Format     TurtleFormat    `json:"format,omitempty"`
+	Resources  TurtleResources `json:"resources,omitempty"`
+	OnError    TurtleOnError   `json:"on_error,omitempty"`
+}
+
+func (i FileOptionsTurtle) FileFormatType() FormatType {
+	return FormatTypeTurtle
+}
 
 type OrderDirection string
 
@@ -131,8 +217,4 @@ func (s *Literal) FromAnyValue(value any) {
 		"Cannot determine schema type of value with type %T, "+
 			"maybe it's needed to define type (see schema.DefineTypeClass() or schema.DefinePrimitiveTypeClass)?", value,
 	))
-}
-
-func ValidateLiteralType(typeName string) bool {
-	return strings.HasPrefix(typeName, "xsd:") || strings.HasPrefix(typeName, "xdd:")
 }

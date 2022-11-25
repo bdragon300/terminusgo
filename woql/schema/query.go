@@ -220,20 +220,14 @@ type DeleteDocument struct {
 type QueryResource struct {
 	// TODO: type is TaggedUnion
 	*schema.SubDocumentModel
-	Source  Source                `json:"source"`
-	Format  FormatType            `json:"format"`
-	Options *QueryResourceOptions ` json:"options" terminusgo:"class=xdd:json"`
+	Source  Source      `json:"source"`
+	Format  FormatType  `json:"format"`
+	Options FileOptions `json:"options" terminusgo:"class=xdd:json,optional"`
 }
 
 // FIXME: hack to comply Querier, figure out why it is a part of query in python client, but in not in schema
 func (q QueryResource) GetQuery() Querier {
 	return &q
-}
-
-// FIXME: figure out full list of options, what they mean and why they are used in python client
-type QueryResourceOptions struct {
-	Format       string `json:"format"`
-	FormatHeader bool   `json:"format_header"`
 }
 
 type Get struct {

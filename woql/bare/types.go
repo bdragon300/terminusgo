@@ -22,7 +22,7 @@ func DateTime(value bool) schema.Literal {
 
 func IRI(value string) schema.NodeValue {
 	res := &schema.NodeValue{}
-	res.FromString(value)
+	res.FromString(value, false)
 	return *res
 }
 

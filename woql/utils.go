@@ -14,57 +14,113 @@ type variableConvertable interface {
 }
 
 type stringConvertable interface {
-	FromString(string)
+	FromString(string, bool)
 }
 
-type numberConvertable interface {
-	FromNumber(value any)
+type anyConvertable interface {
+	FromAnyValue(value any)
 }
 
-func parseVariable[ValueT variableConvertable](expr any, buf ValueT, requireVariable bool) ValueT {
+func parseVariable[ValueT variableConvertable](expr any, buf ValueT, preferLiteral bool) ValueT { // TODO: remove onlyVariable
+	// TODO: refactor, move common parts to a separate function
 	switch v := expr.(type) {
-	case string:
-		parts := strings.SplitN(v, ":", 2)
-		if len(parts) > 1 && parts[0] == "v" {
-			// TODO: validate variable name (not empty, valid characters, etc.)
-			buf.FromVariableName(strings.TrimSpace(parts[1]))
-		} else if requireVariable {
-			panic(fmt.Sprintf("String %q is not a variable expression", expr)) // FIXME: return error instead of panic
-		} else if obj, ok1 := any(buf).(stringConvertable); ok1 {
-			if parts[0] == "v\\" {
-				// Handle `v\:` expression (preventing string interpretation as variable)
-				obj.FromString("v:" + parts[1])
+	case string, Variable, StringOrVariable:
+		strExpr := v.(string)
+		varName, err := extractVariableName(strExpr)
+		_, varOnly := v.(Variable)
+		if err == nil {
+			buf.FromVariableName(varName)
+		} else if obj, ok1 := any(buf).(stringConvertable); ok1 && !varOnly {
+			parseString(strExpr, obj, preferLiteral)
+		} else {
+			panic(fmt.Sprintf("Type %T is not convertable from variable or string", buf))
+		}
+
+	case intOrVarWrapper:
+		switch v2 := v.v.(type) {
+		case string:
+			if varName, err := extractVariableName(v2); err != nil {
+				panic(fmt.Sprintf("String %q is not a variable expression", expr)) // FIXME: return error instead of panic
 			} else {
-				obj.FromString(v)
+				buf.FromVariableName(varName)
 			}
-		} else {
-			panic(fmt.Sprintf("Type %T is not convertable from variable expression", buf))
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr, big.Int:
+			if obj, ok := any(buf).(anyConvertable); ok {
+				obj.FromAnyValue(expr)
+			} else {
+				panic(fmt.Sprintf("Type %T is not convertable from integer", buf))
+			}
+		default:
+			panic(fmt.Sprintf("%v is not an integer or variable", expr)) // FIXME: return error instead of panic
 		}
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr, float32, float64, big.Float, big.Int:
-		if obj, ok := any(buf).(numberConvertable); ok {
-			obj.FromNumber(expr)
-		} else {
-			panic(fmt.Sprintf("Type %T is not convertable from number", buf))
+
+	case numOrVarWrapper:
+		switch v2 := v.v.(type) {
+		case string:
+			if varName, err := extractVariableName(v2); err != nil {
+				panic(fmt.Sprintf("String %q is not a variable expression", expr)) // FIXME: return error instead of panic
+			} else {
+				buf.FromVariableName(varName)
+			}
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr, big.Int, float32, float64, big.Float:
+			if obj, ok := any(buf).(anyConvertable); ok {
+				obj.FromAnyValue(expr)
+			} else {
+				panic(fmt.Sprintf("Type %T is not convertable from number", buf))
+			}
+		default:
+			panic(fmt.Sprintf("%v is not a number or variable", expr)) // FIXME: return error instead of panic
 		}
+
 	default:
-		panic(fmt.Sprintf("Type %T is not convertable from variable expression", expr))
+		switch v2 := v.(type) {
+		case string:
+			if varName, err := extractVariableName(v2); err == nil {
+				buf.FromVariableName(varName)
+			} else if obj, ok1 := any(buf).(stringConvertable); ok1 {
+				parseString(v2, obj, preferLiteral)
+			} else {
+				panic(fmt.Sprintf("Type %T is not convertable from variable or string", buf))
+			}
+		default:
+			if obj, ok := any(buf).(anyConvertable); ok {
+				obj.FromAnyValue(v2)
+			} else {
+				panic(fmt.Sprintf("Type %T is not convertable to literal", buf))
+			}
+		}
 	}
 	return buf
 }
 
-func extractVariableName(expr string) string {
-	parts := strings.SplitN(expr, ":", 2)
-	if len(parts) > 1 && parts[0] == "v" {
-		return parts[1]
+func parseString[T stringConvertable](str string, buf T, preferLiteral bool) T {
+	// `v\:` prefix instead of `v:` prevents string interpretation as variable
+	if strings.HasPrefix(str, "v\\:") { // TODO: move to FromString
+		str = strings.Replace(str, "v\\:", "v:", 1)
 	}
-	panic(fmt.Sprintf("String %q is not a variable expression", expr)) // FIXME: return error instead of panic
+	buf.FromString(str, preferLiteral)
+	return buf
+}
+
+type variableTypes interface {
+	string | Variable | StringOrVariable
+}
+
+func extractVariableName[T variableTypes](expr T) (string, error) {
+	// TODO: validate variable name (not empty, valid characters etc.)
+	parts := strings.SplitN(strings.TrimSpace(string(expr)), ":", 2)
+	if len(parts) > 1 && parts[0] == "v" {
+		return strings.TrimSpace(parts[1]), nil
+	}
+	return "", fmt.Errorf("string %q is not a variable expression", expr)
 }
 
 func parseTriplePattern(expr string) (schema.PathPatternType, error) {
 	return nil, nil // TODO
 }
 
-func parseNumber[T any, PT numberConvertable](value T, buf PT) PT {
+func parseNumber[T any, PT anyConvertable](value T, buf PT) PT {
+	// TODO: validate that `value` is number
 	if bufVal, ok := any(buf).(*T); ok {
 		*bufVal = value
 		return buf
@@ -74,6 +130,6 @@ func parseNumber[T any, PT numberConvertable](value T, buf PT) PT {
 		}
 	}
 
-	buf.FromNumber(value)
+	buf.FromAnyValue(value)
 	return buf
 }

@@ -9,12 +9,12 @@ import (
 // TODO: compare querybuilder interface (including parameter names) with javascript client interface
 // TODO: decide if we want accept another Querier parameters in methods, like in python client
 
-type AggFunction struct {
-	up    *AggFunction // Pointer to AggFunction on the previous subquery level; self for the topmost object
+type AggWrapper struct {
+	up    *AggWrapper // Pointer to AggWrapper on the previous subquery level; self for the topmost object
 	Items []schema.Querier
 }
 
-func (a AggFunction) GetQuery() schema.Querier {
+func (a AggWrapper) GetQuery() schema.Querier {
 	if len(a.Items) > 1 {
 		// TODO: flatten nested Ands in one And, nested Ors in one Or (using appropriate functions)
 		return &schema.And{And: a.Items}
@@ -25,7 +25,7 @@ func (a AggFunction) GetQuery() schema.Querier {
 }
 
 func NewQueryBuilder() *QueryBuilder {
-	aggFunction := AggFunction{}
+	aggFunction := AggWrapper{}
 	aggFunction.up = &aggFunction
 	return &QueryBuilder{
 		root:   aggFunction,
@@ -34,8 +34,8 @@ func NewQueryBuilder() *QueryBuilder {
 }
 
 type QueryBuilder struct {
-	root   AggFunction
-	cursor *AggFunction
+	root   AggWrapper
+	cursor *AggWrapper
 }
 
 func (b *QueryBuilder) GetQuery() schema.Querier {
@@ -47,82 +47,95 @@ func (b *QueryBuilder) Clone() *QueryBuilder {
 	return val.(*QueryBuilder)
 }
 
-func (b *QueryBuilder) And() *QueryBuilder {
+func (b *QueryBuilder) And(subQueries ...schema.Querier) *QueryBuilder {
 	bc := b.Clone()
+	for _, s := range subQueries {
+		if s != nil {
+			bc.cursor.Items = append(bc.cursor.Items, s)
+		}
+	}
 	if len(bc.cursor.Items) == 0 {
-		// Do next fluent calls on the previous subquery level
+		// Do next fluent calls on the previous sub query level
 		bc.cursor = bc.cursor.up
 	}
 	return bc
 }
 
-func (b *QueryBuilder) Not() *QueryBuilder {
+func (b *QueryBuilder) Not(query schema.Querier) *QueryBuilder {
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Not{SubQuery: &agg})
-	bc.cursor = &agg
+	if query != nil {
+		agg.Items = append(agg.Items, query)
+	} else {
+		bc.cursor = &agg
+	}
 	return bc
 }
 
-func (b *QueryBuilder) Select(variables ...schema.NodeValue) *QueryBuilder {
+func (b *QueryBuilder) Select(variables []string) *QueryBuilder {
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
-	var varNames []string
-	for _, varName := range variables {
-		varNames = append(varNames, varName.Variable)
-	}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Select{
 		SubQuery:  agg,
-		Variables: varNames,
+		Variables: variables,
 	})
 	bc.cursor = &agg
 	return bc
 }
 
-func (b *QueryBuilder) From(graph string) *QueryBuilder {
+func (b *QueryBuilder) From(graph string, subQuery schema.Querier) *QueryBuilder {
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.From{SubQuery: &agg, Graph: graph})
-	bc.cursor = &agg
+	if subQuery != nil {
+		agg.Items = append(agg.Items, subQuery)
+	} else {
+		bc.cursor = &agg
+	}
 	return bc
 }
 
-func (b *QueryBuilder) Using(collection string) *QueryBuilder {
+func (b *QueryBuilder) Using(collection string, subQuery schema.Querier) *QueryBuilder {
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Using{SubQuery: &agg, Collection: collection})
-	bc.cursor = &agg
+	if subQuery != nil {
+		agg.Items = append(agg.Items, subQuery)
+	} else {
+		bc.cursor = &agg
+	}
 	return bc
 }
 
 // TODO: Implement Comment function
 
-func (b *QueryBuilder) Distinct(variables ...schema.NodeValue) *QueryBuilder {
+func (b *QueryBuilder) Distinct(variables []string) *QueryBuilder {
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
-	var varNames []string
-	for _, varName := range variables {
-		varNames = append(varNames, varName.Variable)
-	}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Distinct{
 		SubQuery:  agg,
-		Variables: varNames,
+		Variables: variables,
 	})
 	bc.cursor = &agg
 	return bc
 }
 
-func (b *QueryBuilder) Into(graph string) *QueryBuilder {
+func (b *QueryBuilder) Into(graph string, subQuery schema.Querier) *QueryBuilder {
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Into{SubQuery: &agg, Graph: graph})
-	bc.cursor = &agg
+	if subQuery != nil {
+		agg.Items = append(agg.Items, subQuery)
+	} else {
+		bc.cursor = &agg
+	}
 	return bc
 }
 
 func (b *QueryBuilder) OrderBy(ordering []schema.OrderTemplate) *QueryBuilder {
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.OrderBy{
 		SubQuery: &agg,
 		Ordering: ordering,
@@ -131,20 +144,24 @@ func (b *QueryBuilder) OrderBy(ordering []schema.OrderTemplate) *QueryBuilder {
 	return bc
 }
 
-func (b *QueryBuilder) GroupBy(groupBy []schema.NodeValue, template schema.Value, grouped schema.Value) *QueryBuilder {
+func (b *QueryBuilder) GroupBy(groupBy []schema.NodeValue, template schema.Value, grouped schema.Value, subQuery schema.Querier) *QueryBuilder {
 	var varNames []string
 	for _, varName := range groupBy {
 		varNames = append(varNames, varName.Variable)
 	}
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.GroupBy{
-		Template: template, // FIXME: it can be a list in python client, figure out how to interpret template -- list or string
+		Template: template,
 		GroupBy:  varNames,
 		SubQuery: &agg,
 		Grouped:  grouped,
 	})
-	bc.cursor = &agg
+	if subQuery != nil {
+		agg.Items = append(agg.Items, subQuery)
+	} else {
+		bc.cursor = &agg
+	}
 	return bc
 }
 
@@ -323,30 +340,25 @@ func (b *QueryBuilder) Get(columns []schema.Column, resource schema.QueryResourc
 
 // TODO: implement Put
 
-// FIXME: understand if File/Remote/Post are actually needed instead of a single function
-func (b *QueryBuilder) File(source schema.Source, options *schema.QueryResourceOptions) *QueryBuilder {
+func (b *QueryBuilder) QueryResource(source schema.Source, format schema.FormatType, options schema.FileOptions) *QueryBuilder {
 	bc := b.Clone()
-	bc.cursor.Items = append(bc.cursor.Items, queryResource(source, options))
+	bc.cursor.Items = append(bc.cursor.Items, &schema.QueryResource{
+		Source:  source,
+		Format:  format,
+		Options: options,
+	})
 	return bc
 }
 
-func (b *QueryBuilder) Once() *QueryBuilder {
+func (b *QueryBuilder) Once(subQuery schema.Querier) *QueryBuilder {
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Once{SubQuery: &agg})
-	bc.cursor = &agg
-	return bc
-}
-
-func (b *QueryBuilder) Remote(source schema.Source, options *schema.QueryResourceOptions) *QueryBuilder {
-	bc := b.Clone()
-	bc.cursor.Items = append(bc.cursor.Items, queryResource(source, options))
-	return bc
-}
-
-func (b *QueryBuilder) Post(source schema.Source, options *schema.QueryResourceOptions) *QueryBuilder {
-	bc := b.Clone()
-	bc.cursor.Items = append(bc.cursor.Items, queryResource(source, options))
+	if subQuery != nil {
+		agg.Items = append(agg.Items, subQuery)
+	} else {
+		bc.cursor = &agg
+	}
 	return bc
 }
 
@@ -462,11 +474,15 @@ func (b *QueryBuilder) Greater(left, right schema.DataValue) *QueryBuilder {
 	return bc
 }
 
-func (b *QueryBuilder) Optional() *QueryBuilder {
+func (b *QueryBuilder) Optional(subQuery schema.Querier) *QueryBuilder {
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Optional{SubQuery: &agg})
-	bc.cursor = &agg
+	if subQuery != nil {
+		agg.Items = append(agg.Items, subQuery)
+	} else {
+		bc.cursor = &agg
+	}
 	return bc
 }
 
@@ -486,15 +502,6 @@ func (b *QueryBuilder) LexicalKey(base schema.DataValue, keyList []schema.DataVa
 		Base:    base,
 		KeyList: keyList,
 		URI:     uri,
-	})
-	return bc
-}
-
-func (b *QueryBuilder) RandomKey(base schema.DataValue, uri schema.NodeValue) *QueryBuilder {
-	bc := b.Clone()
-	bc.cursor.Items = append(bc.cursor.Items, &schema.RandomKey{
-		Base: base,
-		URI:  uri,
 	})
 	return bc
 }
@@ -538,25 +545,33 @@ func (b *QueryBuilder) Sum(list, result schema.DataValue) *QueryBuilder {
 	return bc
 }
 
-func (b *QueryBuilder) Start(start uint) *QueryBuilder {
+func (b *QueryBuilder) Start(start uint, subQuery schema.Querier) *QueryBuilder {
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Start{
 		SubQuery: &agg,
 		Start:    start,
 	})
-	bc.cursor = &agg
+	if subQuery != nil {
+		agg.Items = append(agg.Items, subQuery)
+	} else {
+		bc.cursor = &agg
+	}
 	return bc
 }
 
-func (b *QueryBuilder) Limit(limit uint) *QueryBuilder {
+func (b *QueryBuilder) Limit(limit uint, subQuery schema.Querier) *QueryBuilder {
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Limit{
 		SubQuery: &agg,
 		Limit:    limit,
 	})
-	bc.cursor = &agg
+	if subQuery != nil {
+		agg.Items = append(agg.Items, subQuery)
+	} else {
+		bc.cursor = &agg
+	}
 	return bc
 }
 
@@ -569,19 +584,27 @@ func (b *QueryBuilder) Length(list, length schema.DataValue) *QueryBuilder {
 	return bc
 }
 
-func (b *QueryBuilder) Immediately() *QueryBuilder {
+func (b *QueryBuilder) Immediately(subQuery schema.Querier) *QueryBuilder {
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Immediately{SubQuery: &agg})
-	bc.cursor = &agg
+	if subQuery != nil {
+		agg.Items = append(agg.Items, subQuery)
+	} else {
+		bc.cursor = &agg
+	}
 	return bc
 }
 
-func (b *QueryBuilder) Count(count schema.DataValue) *QueryBuilder {
+func (b *QueryBuilder) Count(count schema.DataValue, subQuery schema.Querier) *QueryBuilder {
 	bc := b.Clone()
-	agg := AggFunction{up: bc.cursor}
+	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Count{SubQuery: &agg, Count: count})
-	bc.cursor = &agg
+	if subQuery != nil {
+		agg.Items = append(agg.Items, subQuery)
+	} else {
+		bc.cursor = &agg
+	}
 	return bc
 }
 
@@ -628,12 +651,4 @@ func (b *QueryBuilder) Size(resource string, size schema.DataValue) *QueryBuilde
 		Size:     size,
 	})
 	return bc
-}
-
-func queryResource(source schema.Source, options *schema.QueryResourceOptions) *schema.QueryResource {
-	return &schema.QueryResource{
-		Source:  source,               // FIXME: figure out why we pass also a string here in python client
-		Format:  schema.FormatTypeCSV, // FIXME: in python client this field is modified based on options (only in File)
-		Options: options,
-	}
 }

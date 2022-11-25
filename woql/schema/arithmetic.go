@@ -27,16 +27,20 @@ func (v *ArithmeticValue) FromVariableName(value string) {
 	v.Variable = value
 }
 
-func (v *ArithmeticValue) FromNumber(value any) {
+func (v *ArithmeticValue) FromAnyValue(value any) {
 	newVal := &Literal{}
 	newVal.FromAnyValue(value)
 	v.Data = *newVal
 }
 
-func (v *ArithmeticValue) FromString(value string) {
-	newVal := &Literal{}
-	newVal.FromAnyValue(value)
-	v.Data = *newVal
+func (v *ArithmeticValue) FromString(value string, forceLiteral bool) {
+	if forceLiteral {
+		newVal := &Literal{}
+		newVal.FromAnyValue(value)
+		v.Data = *newVal
+	} else {
+		v.Data = value
+	}
 }
 
 type Plus struct {
