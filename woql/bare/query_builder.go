@@ -144,16 +144,12 @@ func (b *QueryBuilder) OrderBy(ordering []schema.OrderTemplate) *QueryBuilder {
 	return bc
 }
 
-func (b *QueryBuilder) GroupBy(groupBy []schema.NodeValue, template schema.Value, grouped schema.Value, subQuery schema.Querier) *QueryBuilder {
-	var varNames []string
-	for _, varName := range groupBy {
-		varNames = append(varNames, varName.Variable)
-	}
+func (b *QueryBuilder) GroupBy(groupBy []string, template schema.Value, grouped schema.Value, subQuery schema.Querier) *QueryBuilder {
 	bc := b.Clone()
 	agg := AggWrapper{up: bc.cursor}
 	bc.cursor.Items = append(bc.cursor.Items, &schema.GroupBy{
 		Template: template,
-		GroupBy:  varNames,
+		GroupBy:  groupBy,
 		SubQuery: &agg,
 		Grouped:  grouped,
 	})
@@ -194,16 +190,6 @@ func (b *QueryBuilder) AddTriple(subject, predicate schema.NodeValue, object sch
 	return bc
 }
 
-func (b *QueryBuilder) DeleteTriple(subject, predicate schema.NodeValue, object schema.Value) *QueryBuilder {
-	bc := b.Clone()
-	bc.cursor.Items = append(bc.cursor.Items, &schema.DeleteTriple{
-		Subject:   subject,
-		Predicate: predicate,
-		Object:    object,
-	})
-	return bc
-}
-
 func (b *QueryBuilder) AddedTriple(subj, pred schema.NodeValue, obj schema.Value) *QueryBuilder {
 	bc := b.Clone()
 	bc.cursor.Items = append(bc.cursor.Items, &schema.AddedTriple{
@@ -214,7 +200,25 @@ func (b *QueryBuilder) AddedTriple(subj, pred schema.NodeValue, obj schema.Value
 	return bc
 }
 
-// TODO: implement RemovedTriple
+func (b *QueryBuilder) DeleteTriple(subject, predicate schema.NodeValue, object schema.Value) *QueryBuilder {
+	bc := b.Clone()
+	bc.cursor.Items = append(bc.cursor.Items, &schema.DeleteTriple{
+		Subject:   subject,
+		Predicate: predicate,
+		Object:    object,
+	})
+	return bc
+}
+
+func (b *QueryBuilder) RemovedTriple(subject, predicate schema.NodeValue, object schema.Value) *QueryBuilder {
+	bc := b.Clone()
+	bc.cursor.Items = append(bc.cursor.Items, &schema.RemovedTriple{
+		Subject:   subject,
+		Predicate: predicate,
+		Object:    object,
+	})
+	return bc
+}
 
 func (b *QueryBuilder) Quad(subj, pred schema.NodeValue, obj schema.Value, graph string) *QueryBuilder {
 	bc := b.Clone()
@@ -229,11 +233,22 @@ func (b *QueryBuilder) Quad(subj, pred schema.NodeValue, obj schema.Value, graph
 
 func (b *QueryBuilder) AddQuad(subject, predicate schema.NodeValue, object schema.Value, graph string) *QueryBuilder {
 	bc := b.Clone()
-	bc.cursor.Items = append(bc.cursor.Items, &schema.AddTriple{
+	bc.cursor.Items = append(bc.cursor.Items, &schema.AddQuad{
 		Subject:   subject,
 		Predicate: predicate,
 		Object:    object,
-		Graph:     &graph,
+		Graph:     graph,
+	})
+	return bc
+}
+
+func (b *QueryBuilder) AddedQuad(subj, pred schema.NodeValue, obj schema.Value, graph string) *QueryBuilder {
+	bc := b.Clone()
+	bc.cursor.Items = append(bc.cursor.Items, &schema.AddedQuad{
+		Subject:   subj,
+		Predicate: pred,
+		Object:    obj,
+		Graph:     graph,
 	})
 	return bc
 }
@@ -249,18 +264,16 @@ func (b *QueryBuilder) DeleteQuad(subject, predicate schema.NodeValue, object sc
 	return bc
 }
 
-func (b *QueryBuilder) AddedQuad(subj, pred schema.NodeValue, obj schema.Value, graph string) *QueryBuilder {
+func (b *QueryBuilder) RemovedQuad(subject, predicate schema.NodeValue, object schema.Value, graph string) *QueryBuilder {
 	bc := b.Clone()
-	bc.cursor.Items = append(bc.cursor.Items, &schema.AddedTriple{
-		Subject:   subj,
-		Predicate: pred,
-		Object:    obj,
-		Graph:     &graph,
+	bc.cursor.Items = append(bc.cursor.Items, &schema.RemovedQuad{
+		Subject:   subject,
+		Predicate: predicate,
+		Object:    object,
+		Graph:     graph,
 	})
 	return bc
 }
-
-// TODO: implement RemovedQuad
 
 func (b *QueryBuilder) Subsumption(parent, child schema.NodeValue) *QueryBuilder {
 	bc := b.Clone()
@@ -418,7 +431,7 @@ func (b *QueryBuilder) Split(str, pattern, list schema.DataValue) *QueryBuilder 
 	return bc
 }
 
-func (b *QueryBuilder) Regexp(pattern, str schema.DataValue, result *schema.DataValue) *QueryBuilder {
+func (b *QueryBuilder) Regexp(pattern, str schema.DataValue, result schema.DataValue) *QueryBuilder {
 	bc := b.Clone()
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Regexp{
 		Pattern: pattern,
@@ -651,4 +664,8 @@ func (b *QueryBuilder) Size(resource string, size schema.DataValue) *QueryBuilde
 		Size:     size,
 	})
 	return bc
+}
+
+func (b *QueryBuilder) Query() *QueryBuilder {
+	return NewQueryBuilder()
 }

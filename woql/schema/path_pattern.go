@@ -2,6 +2,8 @@ package schema
 
 import "github.com/bdragon300/terminusgo/schema"
 
+// TODO: not used any of this
+
 type PathPatternType interface {
 	PathPattern()
 }

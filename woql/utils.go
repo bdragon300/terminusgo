@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/bdragon300/terminusgo/woql/schema"
-	"github.com/mitchellh/mapstructure"
 )
 
 type variableConvertable interface {
@@ -117,19 +116,4 @@ func extractVariableName[T variableTypes](expr T) (string, error) {
 
 func parseTriplePattern(expr string) (schema.PathPatternType, error) {
 	return nil, nil // TODO
-}
-
-func parseNumber[T any, PT anyConvertable](value T, buf PT) PT {
-	// TODO: validate that `value` is number
-	if bufVal, ok := any(buf).(*T); ok {
-		*bufVal = value
-		return buf
-	} else if _, ok = any(value).(PT); ok {
-		if err := mapstructure.Decode(value, buf); err != nil {
-			panic(fmt.Sprintf("Error while copying struct: %v", err))
-		}
-	}
-
-	buf.FromAnyValue(value)
-	return buf
 }

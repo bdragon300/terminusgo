@@ -7,8 +7,9 @@ import (
 	"github.com/bdragon300/terminusgo/woql/schema"
 )
 
-// TODO: check query builder against javascript client and terminus query schema
-// TODO: in some methods the parameters can actually be a one var, var list or string. Do smth with this
+// TODO: grep "[a-z_]ast('" src/core/query/json_woql.pl
+// TODO: implement WOQLLibrary
+// TODO: see if it's needed to implement woqlDoc
 
 func NewSimpleQueryBuilder() *QueryBuilder {
 	return &QueryBuilder{bare.NewQueryBuilder()}
@@ -17,8 +18,8 @@ func NewSimpleQueryBuilder() *QueryBuilder {
 type (
 	Variable          string
 	StringOrVariable  string
-	IntegerOrVariable any // Must be wrapped by intOrVarWrapper before parseVariable call
-	NumberOrVariable  any //  Must be wrapped by numOrVarWrapper before parseVariable call
+	IntegerOrVariable any
+	NumberOrVariable  any
 	AnyOrVariable     any
 )
 
@@ -28,6 +29,8 @@ type intOrVarWrapper struct {
 	v any
 }
 
+// numOrVarWrapper is a wrapper for NumberOrVariable variable, this helps to distinguish a NumberOrVariable type
+// from other "any" aliases
 type numOrVarWrapper struct {
 	v any
 }
@@ -105,9 +108,13 @@ func (b *QueryBuilder) OrderBy(vars map[Variable]schema.OrderDirection) *QueryBu
 }
 
 func (b *QueryBuilder) GroupBy(groupVars []Variable, templateVars []Variable, outputVar Variable, subQuery schema.Querier) *QueryBuilder {
-	grpVars := make([]schema.NodeValue, 0)
+	grpVars := make([]string, 0)
 	for _, v := range groupVars {
-		grpVars = append(grpVars, *parseVariable(v, &schema.NodeValue{}, false))
+		varName, err := extractVariableName(v)
+		if err != nil {
+			panic(fmt.Sprintf("Value %q is not a variable", v))
+		}
+		grpVars = append(grpVars, varName)
 	}
 	tplVars := make([]schema.Value, 0)
 	for _, v := range templateVars {
@@ -144,6 +151,14 @@ func (b *QueryBuilder) AddTriple(subject, predicate, object StringOrVariable) *Q
 	))
 }
 
+func (b *QueryBuilder) AddedTriple(subject, predicate, object StringOrVariable) *QueryBuilder {
+	return wrapBareQB(b.Bare.AddedTriple(
+		*parseVariable(subject, &schema.NodeValue{}, false),
+		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
+		*parseVariable(object, &schema.Value{}, false),
+	))
+}
+
 func (b *QueryBuilder) DeleteTriple(subject, predicate, object StringOrVariable) *QueryBuilder {
 	return wrapBareQB(b.Bare.DeleteTriple(
 		*parseVariable(subject, &schema.NodeValue{}, false),
@@ -152,12 +167,25 @@ func (b *QueryBuilder) DeleteTriple(subject, predicate, object StringOrVariable)
 	))
 }
 
-func (b *QueryBuilder) AddedTriple(subject, predicate, object StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.AddedTriple(
+func (b *QueryBuilder) RemovedTriple(subject, predicate, object StringOrVariable) *QueryBuilder {
+	return wrapBareQB(b.Bare.RemovedTriple(
 		*parseVariable(subject, &schema.NodeValue{}, false),
 		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
 		*parseVariable(object, &schema.Value{}, false),
 	))
+}
+
+func (b *QueryBuilder) UpdateTriple(subject, predicate, newObject StringOrVariable) *QueryBuilder {
+	return b.And(
+		b.Query().Optional(
+			b.Query().
+				Triple(subject, predicate, "v:AnyObject").
+				DeleteTriple(subject, predicate, "v:AnyObject").
+				Not(nil).
+				Triple(subject, predicate, newObject),
+		),
+		b.Query().AddTriple(subject, predicate, newObject),
+	)
 }
 
 func (b *QueryBuilder) Quad(subject, predicate, object StringOrVariable, graph string) *QueryBuilder {
@@ -178,6 +206,15 @@ func (b *QueryBuilder) AddQuad(subject, predicate, object StringOrVariable, grap
 	))
 }
 
+func (b *QueryBuilder) AddedQuad(subject, predicate, object StringOrVariable, graph string) *QueryBuilder {
+	return wrapBareQB(b.Bare.AddedQuad(
+		*parseVariable(subject, &schema.NodeValue{}, false),
+		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
+		*parseVariable(object, &schema.Value{}, false),
+		graph,
+	))
+}
+
 func (b *QueryBuilder) DeleteQuad(subject, predicate, object StringOrVariable, graph string) *QueryBuilder {
 	return wrapBareQB(b.Bare.DeleteQuad(
 		*parseVariable(subject, &schema.NodeValue{}, false),
@@ -187,13 +224,26 @@ func (b *QueryBuilder) DeleteQuad(subject, predicate, object StringOrVariable, g
 	))
 }
 
-func (b *QueryBuilder) AddedQuad(subject, predicate, object StringOrVariable, graph string) *QueryBuilder {
-	return wrapBareQB(b.Bare.AddedQuad(
+func (b *QueryBuilder) RemovedQuad(subject, predicate, object StringOrVariable, graph string) *QueryBuilder {
+	return wrapBareQB(b.Bare.RemovedQuad(
 		*parseVariable(subject, &schema.NodeValue{}, false),
 		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
 		*parseVariable(object, &schema.Value{}, false),
 		graph,
 	))
+}
+
+func (b *QueryBuilder) UpdateQuad(subject, predicate, newObject StringOrVariable, graph string) *QueryBuilder {
+	return b.And(
+		b.Query().Optional(
+			b.Query().
+				Quad(subject, predicate, "v:AnyObject", graph).
+				DeleteQuad(subject, predicate, "v:AnyObject", graph).
+				Not(nil).
+				Quad(subject, predicate, newObject, graph),
+		),
+		b.Query().AddQuad(subject, predicate, newObject, graph),
+	)
 }
 
 func (b *QueryBuilder) Subsumption(parent, child StringOrVariable) *QueryBuilder {
@@ -266,7 +316,7 @@ func (b *QueryBuilder) ReadDocument(iri StringOrVariable, outputVar Variable) *Q
 }
 
 func (b *QueryBuilder) File(url string, options schema.FileOptions) *QueryBuilder {
-	source := schema.Source{File: url}
+	source := schema.Source{URL: url}
 	format := schema.FormatTypeCSV
 	if options != nil {
 		format = options.FileFormatType()
@@ -279,7 +329,7 @@ func (b *QueryBuilder) Once(subQuery schema.Querier) *QueryBuilder {
 }
 
 func (b *QueryBuilder) Remote(url string, options schema.FileOptions) *QueryBuilder {
-	source := schema.Source{URI: url}
+	source := schema.Source{URL: url}
 	format := schema.FormatTypeCSV
 	if options != nil {
 		format = options.FileFormatType()
@@ -390,21 +440,16 @@ func (b *QueryBuilder) Split(varName, separator, resultVar StringOrVariable) *Qu
 }
 
 func (b *QueryBuilder) Regexp(pattern, str StringOrVariable, result Variable) *QueryBuilder {
-	var resParam *schema.DataValue
-	if result != "" {
-		resParam = parseVariable(result, &schema.DataValue{}, true)
-	}
 	return wrapBareQB(b.Bare.Regexp(
 		*parseVariable(pattern, &schema.DataValue{}, true),
 		*parseVariable(str, &schema.DataValue{}, true),
-		resParam,
+		*parseVariable(result, &schema.DataValue{}, true),
 	))
 }
 
 func (b *QueryBuilder) RegexpToList(pattern, str StringOrVariable, result []StringOrVariable) *QueryBuilder {
-	var resParam *schema.DataValue
+	resParam := schema.DataValue{}
 	if len(result) > 0 {
-		resParam = &schema.DataValue{}
 		for _, v := range result {
 			resParam.List = append(resParam.List, *parseVariable(v, &schema.DataValue{}, true))
 		}
@@ -604,6 +649,44 @@ func (b *QueryBuilder) Size(graph string, resultVar Variable) *QueryBuilder {
 		graph,
 		*parseVariable(resultVar, &schema.DataValue{}, false),
 	))
+}
+
+func (b *QueryBuilder) Star(graph string, subject, predicate, object StringOrVariable) *QueryBuilder {
+	if subject == "" {
+		subject = "v:Subject"
+	}
+	if predicate == "" {
+		predicate = "v:Predicate"
+	}
+	if object == "" {
+		object = "v:Object"
+	}
+	if graph != "" {
+		return b.Quad(subject, predicate, object, graph)
+	}
+	return b.Triple(subject, predicate, object)
+}
+
+func (b *QueryBuilder) All(subject, predicate, object StringOrVariable, graph string) *QueryBuilder {
+	return b.Star(graph, subject, predicate, object)
+}
+
+func (b *QueryBuilder) Insert(id, typ StringOrVariable, graph string) *QueryBuilder {
+	if graph != "" {
+		return b.AddQuad(id, "rdf:type", "@schema:"+typ, graph)
+	}
+	return b.AddTriple(id, "rdf:type", "@schema:"+typ)
+}
+
+func (b *QueryBuilder) Nuke(graph string) *QueryBuilder {
+	if graph != "" {
+		return b.Quad("v:A", "v:B", "v:C", graph).DeleteQuad("v:A", "v:B", "v:C", graph)
+	}
+	return b.Triple("v:A", "v:B", "v:C").DeleteTriple("v:A", "v:B", "v:C")
+}
+
+func (b *QueryBuilder) Query() *QueryBuilder {
+	return NewSimpleQueryBuilder()
 }
 
 func wrapBareQB(qb *bare.QueryBuilder) *QueryBuilder {

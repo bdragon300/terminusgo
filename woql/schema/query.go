@@ -5,8 +5,8 @@ import "github.com/bdragon300/terminusgo/schema"
 // TODO: check if all schema structs are actually used
 
 // TODO: add json marshaler/unmarshaler which is not require json tags everywhere (and applies `omitempty` everywhere)
+// TODO: check schema against json_woql.pl
 
-// TODO: not used
 type NamedQuery struct {
 	Name  string  `json:"name"`
 	Query Querier `json:"query" terminusgo:"type=Class,class=Query"`
@@ -16,7 +16,6 @@ func (n NamedQuery) GetSubQuery() Querier {
 	return n.Query
 }
 
-// TODO: not used
 type NamedParametricQuery struct {
 	Name       string   `json:"name"`
 	Parameters []string `json:"parameters"`
@@ -127,7 +126,6 @@ type AddTriple struct {
 	Subject   NodeValue `json:"subject"`
 	Predicate NodeValue `json:"predicate"`
 	Object    Value     `json:"object"`
-	Graph     *string   `json:"graph"`
 }
 
 type AddedTriple struct {
@@ -135,7 +133,6 @@ type AddedTriple struct {
 	Subject   NodeValue `json:"subject"`
 	Predicate NodeValue `json:"predicate"`
 	Object    Value     `json:"object"`
-	Graph     *string   `json:"graph"`
 }
 
 type DeleteTriple struct {
@@ -146,13 +143,35 @@ type DeleteTriple struct {
 	Graph     *string   `json:"graph"`
 }
 
-// TODO: not used
-type DeletedTriple struct {
+type RemovedTriple struct {
 	Query
 	Subject   NodeValue `json:"subject"`
 	Predicate NodeValue `json:"predicate"`
 	Object    Value     `json:"object"`
-	Graph     *string   `json:"graph"`
+}
+
+type AddQuad struct {
+	Query
+	Subject   NodeValue `json:"subject"`
+	Predicate NodeValue `json:"predicate"`
+	Object    Value     `json:"object"`
+	Graph     string    `json:"graph"`
+}
+
+type AddedQuad struct {
+	Query
+	Subject   NodeValue `json:"subject"`
+	Predicate NodeValue `json:"predicate"`
+	Object    Value     `json:"object"`
+	Graph     string    `json:"graph"`
+}
+
+type RemovedQuad struct {
+	Query
+	Subject   NodeValue `json:"subject"`
+	Predicate NodeValue `json:"predicate"`
+	Object    Value     `json:"object"`
+	Graph     string    `json:"graph"`
 }
 
 // TODO: not used
@@ -164,7 +183,6 @@ type Link struct {
 	Graph     *string   `json:"graph"`
 }
 
-// TODO: not used
 type Data struct {
 	Query
 	Subject   NodeValue `json:"subject"`
@@ -217,6 +235,22 @@ type DeleteDocument struct {
 	Identifier NodeValue `json:"identifier"`
 }
 
+type ReadObject struct {
+	Query
+	Identifier NodeValue `json:"identifier"`
+	Document   Value     `json:"document"`
+}
+
+type UpdateObject struct {
+	Query
+	Document Value `json:"document"`
+}
+
+type DeleteObject struct {
+	Query
+	Identifier NodeValue `json:"identifier"`
+}
+
 type QueryResource struct {
 	// TODO: type is TaggedUnion
 	*schema.SubDocumentModel
@@ -237,7 +271,6 @@ type Get struct {
 	HasHeader *bool         `json:"has_header"`
 }
 
-// TODO: not used
 type AddedData struct {
 	Query
 	Subject   NodeValue `json:"subject"`
@@ -246,7 +279,6 @@ type AddedData struct {
 	Graph     *string   `json:"graph"`
 }
 
-// TODO: not used
 type AddLink struct {
 	Query
 	Subject   NodeValue `json:"subject"`
@@ -255,7 +287,6 @@ type AddLink struct {
 	Graph     *string   `json:"graph"`
 }
 
-// TODO: not used
 type AddedLink struct {
 	Query
 	Subject   NodeValue `json:"subject"`
@@ -264,7 +295,6 @@ type AddedLink struct {
 	Graph     *string   `json:"graph"`
 }
 
-// TODO: not used
 type AddData struct {
 	Query
 	Subject   NodeValue `json:"subject"`
@@ -273,7 +303,6 @@ type AddData struct {
 	Graph     *string   `json:"graph"`
 }
 
-// TODO: not used
 type DeleteLink struct {
 	Query
 	Subject   NodeValue `json:"subject"`
@@ -282,7 +311,6 @@ type DeleteLink struct {
 	Graph     *string   `json:"graph"`
 }
 
-// TODO: not used
 type DeletedLink struct {
 	Query
 	Subject   NodeValue `json:"subject"`
@@ -291,7 +319,6 @@ type DeletedLink struct {
 	Graph     *string   `json:"graph"`
 }
 
-// TODO: not used
 type If struct {
 	Query
 	Test Querier `json:"test" terminusgo:"type=Class,class=Query"`
@@ -303,6 +330,14 @@ type If struct {
 // func (n If) GetSubQuery() Querier {
 //	return n.SubQuery
 //}
+
+type When struct {
+	Query
+	SubQuery   Querier `json:"query" terminusgo:"type=Class,class=Query"`
+	Consequent Querier `json:"consequent" terminusgo:"type=Class,class=Query"`
+}
+
+// TODO: implement SubQuerier
 
 type Trim struct {
 	Query
@@ -438,9 +473,9 @@ func (n Limit) GetSubQuery() Querier {
 
 type Regexp struct {
 	Query
-	Pattern DataValue  `json:"pattern"`
-	String  DataValue  `json:"string"`
-	Result  *DataValue `json:"result"`
+	Pattern DataValue `json:"pattern"`
+	String  DataValue `json:"string"`
+	Result  DataValue `json:"result"`
 }
 
 type True struct {

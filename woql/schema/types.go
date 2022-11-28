@@ -21,7 +21,7 @@ type FieldValuePair struct {
 type Value struct {
 	// TODO: type is TaggedUnion
 	*schema.SubDocumentModel
-	Dictionary DictionaryTemplate `json:"dictionary"`
+	Dictionary DictionaryTemplate `json:"dictionary"` // TODO: field does not used anywhere
 	List       []Value            `json:"list"`
 	Node       string             `json:"node"`
 	Variable   string             `json:"variable"`
@@ -107,8 +107,7 @@ type Source struct {
 	// TODO: type is TaggedUnion
 	*schema.SubDocumentModel
 	Post string `json:"post"`
-	File string `json:"file"` // File not in schema, but is actually used
-	URI  string `json:"uri"`
+	URL  string `json:"url"`
 }
 
 type FileOptions interface {

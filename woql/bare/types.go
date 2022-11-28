@@ -26,3 +26,4 @@ func IRI(value string) schema.NodeValue {
 	return *res
 }
 
+// TODO: implement function to get any literal by parameter
