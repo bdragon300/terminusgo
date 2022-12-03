@@ -6,8 +6,6 @@ import (
 )
 
 // TODO: maybe it's needed a package for JSON-LD
-// TODO: compare querybuilder interface (including parameter names) with javascript client interface
-// TODO: decide if we want accept another Querier parameters in methods, like in python client
 
 type AggWrapper struct {
 	up    *AggWrapper // Pointer to AggWrapper on the previous subquery level; self for the topmost object
@@ -107,8 +105,6 @@ func (b *QueryBuilder) Using(collection string, subQuery schema.Querier) *QueryB
 	}
 	return bc
 }
-
-// TODO: Implement Comment function
 
 func (b *QueryBuilder) Distinct(variables []string) *QueryBuilder {
 	bc := b.Clone()
@@ -286,7 +282,7 @@ func (b *QueryBuilder) Subsumption(parent, child schema.NodeValue) *QueryBuilder
 
 func (b *QueryBuilder) Equals(left, right schema.DataValue) *QueryBuilder {
 	bc := b.Clone()
-	bc.cursor.Items = append(bc.cursor.Items, &schema.Equals{ // TODO: in python client left\right are schema.Value, figure out why
+	bc.cursor.Items = append(bc.cursor.Items, &schema.Equals{ // TODO: may be Value, see clients or db sources
 		Left:  left,
 		Right: right,
 	})
@@ -340,28 +336,17 @@ func (b *QueryBuilder) ReadDocument(identifier schema.NodeValue, document schema
 	return bc
 }
 
-// FIXME: maybe it's better to have it as function, not method?
 func (b *QueryBuilder) Get(columns []schema.Column, resource schema.QueryResource) *QueryBuilder {
 	bc := b.Clone()
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Get{
-		Columns:  columns,
-		Resource: resource,
-		// HasHeader: nil,  // TODO: HasHeader is not used in python client, figure out why
-	}) // FIXME: in python client cursor moves to resource, figure out what it means
+		Columns:   columns,
+		Resource:  resource,
+		HasHeader: nil,
+	})
 	return bc
 }
 
 // TODO: implement Put
-
-func (b *QueryBuilder) QueryResource(source schema.Source, format schema.FormatType, options schema.FileOptions) *QueryBuilder {
-	bc := b.Clone()
-	bc.cursor.Items = append(bc.cursor.Items, &schema.QueryResource{
-		Source:  source,
-		Format:  format,
-		Options: options,
-	})
-	return bc
-}
 
 func (b *QueryBuilder) Once(subQuery schema.Querier) *QueryBuilder {
 	bc := b.Clone()
@@ -386,7 +371,7 @@ func (b *QueryBuilder) Trim(untrimmed, trimmed schema.DataValue) *QueryBuilder {
 
 func (b *QueryBuilder) Upper(mixed, upper schema.DataValue) *QueryBuilder {
 	bc := b.Clone()
-	bc.cursor.Items = append(bc.cursor.Items, &schema.Upper{ // TODO: figure out why parameters are called left\right in python client
+	bc.cursor.Items = append(bc.cursor.Items, &schema.Upper{
 		Mixed: mixed,
 		Upper: upper,
 	})
@@ -395,7 +380,7 @@ func (b *QueryBuilder) Upper(mixed, upper schema.DataValue) *QueryBuilder {
 
 func (b *QueryBuilder) Lower(mixed, lower schema.DataValue) *QueryBuilder {
 	bc := b.Clone()
-	bc.cursor.Items = append(bc.cursor.Items, &schema.Lower{ // TODO: figure out why parameters are called left\right in python client
+	bc.cursor.Items = append(bc.cursor.Items, &schema.Lower{
 		Mixed: mixed,
 		Lower: lower,
 	})
@@ -592,7 +577,7 @@ func (b *QueryBuilder) Length(list, length schema.DataValue) *QueryBuilder {
 	bc := b.Clone()
 	bc.cursor.Items = append(bc.cursor.Items, &schema.Length{
 		List:   list,
-		Length: length, // FIXME: in python client this field has type Value, figure out why
+		Length: length,
 	})
 	return bc
 }

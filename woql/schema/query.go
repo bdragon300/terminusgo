@@ -259,11 +259,6 @@ type QueryResource struct {
 	Options FileOptions `json:"options" terminusgo:"class=xdd:json,optional"`
 }
 
-// FIXME: hack to comply Querier, figure out why it is a part of query in python client, but in not in schema
-func (q QueryResource) GetQuery() Querier {
-	return &q
-}
-
 type Get struct {
 	Query
 	Columns   []Column      `json:"columns"`

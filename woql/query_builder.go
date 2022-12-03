@@ -7,7 +7,6 @@ import (
 	"github.com/bdragon300/terminusgo/woql/schema"
 )
 
-// TODO: grep "[a-z_]ast('" src/core/query/json_woql.pl
 // TODO: implement WOQLLibrary
 // TODO: see if it's needed to implement woqlDoc
 
@@ -131,7 +130,7 @@ func (b *QueryBuilder) GroupBy(groupVars []Variable, templateVars []Variable, ou
 func (b *QueryBuilder) TripleCount(resourceID string, countVar IntegerOrVariable) *QueryBuilder {
 	return wrapBareQB(b.Bare.TripleCount(
 		resourceID,
-		*parseVariable(intOrVarWrapper{countVar}, &schema.DataValue{}, false), // FIXME: countVar in python client has type Value, figure out why
+		*parseVariable(intOrVarWrapper{countVar}, &schema.DataValue{}, false),
 	))
 }
 
@@ -315,35 +314,8 @@ func (b *QueryBuilder) ReadDocument(iri StringOrVariable, outputVar Variable) *Q
 	))
 }
 
-func (b *QueryBuilder) File(url string, options schema.FileOptions) *QueryBuilder {
-	source := schema.Source{URL: url}
-	format := schema.FormatTypeCSV
-	if options != nil {
-		format = options.FileFormatType()
-	}
-	return wrapBareQB(b.Bare.QueryResource(source, format, options))
-}
-
 func (b *QueryBuilder) Once(subQuery schema.Querier) *QueryBuilder {
 	return wrapBareQB(b.Bare.Once(subQuery))
-}
-
-func (b *QueryBuilder) Remote(url string, options schema.FileOptions) *QueryBuilder {
-	source := schema.Source{URL: url}
-	format := schema.FormatTypeCSV
-	if options != nil {
-		format = options.FileFormatType()
-	}
-	return wrapBareQB(b.Bare.QueryResource(source, format, options))
-}
-
-func (b *QueryBuilder) Post(url string, options schema.FileOptions) *QueryBuilder {
-	source := schema.Source{Post: url}
-	format := schema.FormatTypeCSV
-	if options != nil {
-		format = options.FileFormatType()
-	}
-	return wrapBareQB(b.Bare.QueryResource(source, format, options))
 }
 
 func (b *QueryBuilder) Trim(untrimmed, trimmed StringOrVariable) *QueryBuilder {
@@ -366,32 +338,6 @@ func (b *QueryBuilder) Lower(left StringOrVariable, right Variable) *QueryBuilde
 		*parseVariable(right, &schema.DataValue{}, true),
 	))
 }
-
-//// TODO: maybe it's needed a version with var list and one var, not only with DataValue.List
-// func (b *QueryBuilder) ConcatenateTemplate(varExpr string, result StringOrVariable) *QueryBuilder {
-//	var params []schema.DataValue
-//
-//	// Split up a string to variables and the regular text blocks and push to param list with appropriate type
-//	// E.g "  lorem ipsum v:var1v:var2 dolor sit      v:  var3 amet " is transformed to
-//	// "  lorem ipsum" + "v:var1" + "v:var2" + " dolor sit      " + "v:var3" + " amet "
-//	parts := strings.Split(varExpr, "v:")
-//	for _, part := range parts {
-//		fields := strings.Fields(part)
-//		if len(fields) < 1 {
-//			panic("unnamed variable in concatenate expression") // TODO: return error instead of panic
-//		}
-//		params = append(params, *parseVariable("v:"+fields[0], &schema.DataValue{}, true))
-//
-//		part = part[strings.Index(part, fields[0])+len(fields[0]):]
-//		if part != "" {
-//			params = append(params, *parseVariable(part, &schema.DataValue{}, true))
-//		}
-//	}
-//	return wrapBareQB(b.Bare.Concatenate(
-//		schema.DataValue{List: params},
-//		*parseVariable(result, &schema.DataValue{}, true),
-//	))
-//}
 
 func (b *QueryBuilder) ConcatenateList(stringsOrVars []StringOrVariable, result StringOrVariable) *QueryBuilder {
 	var params []schema.DataValue
