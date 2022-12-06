@@ -9,6 +9,7 @@ import (
 
 // TODO: implement WOQLLibrary
 // TODO: see if it's needed to implement woqlDoc
+// TODO: implement Get/Put (require .As() to be implemented)
 
 func NewSimpleQueryBuilder() *QueryBuilder {
 	return &QueryBuilder{bare.NewQueryBuilder()}

@@ -266,6 +266,13 @@ type Get struct {
 	HasHeader *bool         `json:"has_header"`
 }
 
+type Put struct {
+	Query
+	Columns  []Column
+	SubQuery Querier `terminusgo:"type=Class,class=Query"`
+	Resource QueryResource
+}
+
 type AddedData struct {
 	Query
 	Subject   NodeValue `json:"subject"`

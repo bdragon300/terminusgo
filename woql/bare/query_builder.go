@@ -355,7 +355,21 @@ func (b *QueryBuilder) Get(columns []schema.Column, resource schema.QueryResourc
 	return bc
 }
 
-// TODO: implement Put
+func (b *QueryBuilder) Put(columns []schema.Column, resource schema.QueryResource, subQuery schema.Querier) *QueryBuilder {
+	bc := b.Clone()
+	agg := AggWrapper{up: bc.cursor}
+	bc.cursor.Items = append(bc.cursor.Items, &schema.Put{
+		Columns:  columns,
+		Resource: resource,
+		SubQuery: &agg,
+	})
+	if subQuery != nil {
+		agg.Items = append(agg.Items, subQuery)
+	} else {
+		bc.cursor = &agg
+	}
+	return bc
+}
 
 func (b *QueryBuilder) Once(subQuery schema.Querier) *QueryBuilder {
 	bc := b.Clone()
