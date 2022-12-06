@@ -31,6 +31,8 @@ type Field struct {
 	MinCardinality uint      `json:"@min_cardinality,omitempty" mapstructure:"@min_cardinality,omitempty"` // For Set type
 	MaxCardinality uint      `json:"@max_cardinality,omitempty" mapstructure:"@max_cardinality,omitempty"` // For Set type
 	Dimensions     uint      `json:"@dimensions,omitempty" mapstructure:"@dimensions,omitempty"`           // For Array type
+
+	Tags map[string]string `json:"-" mapstructure:"-"`
 }
 
 func analyzeModel(mdlTyp reflect.Type) (parents []reflect.Type, grandparents []reflect.Type, fields map[string]Field) {
@@ -77,8 +79,8 @@ func getFieldSchema(field reflect.StructField) (string, Field, bool) {
 		return fldName, schema, false // TODO: test it
 	}
 
-	tags := parseTags(field)
-	if _, ok := tags["-"]; ok {
+	schema.Tags = parseTags(field)
+	if _, ok := schema.Tags["-"]; ok {
 		return fldName, schema, false // Skip by user request
 	}
 
@@ -100,12 +102,12 @@ func getFieldSchema(field reflect.StructField) (string, Field, bool) {
 		schema.Class = fldTyp.Name()
 	}
 
-	applyTags(&schema, tags)
+	applyTags(&schema, schema.Tags)
 	if schema.Type != FieldTypeForeign && schema.Class == "" {
 		panic(fmt.Sprintf("Unable to determine class for field '%s %s', try to set it manually or mark field as ignored", field.Name, field.Type))
 	}
 
-	if n, ok := tags["name"]; ok {
+	if n, ok := schema.Tags["name"]; ok {
 		fldName = n
 	}
 

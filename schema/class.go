@@ -39,7 +39,7 @@ type (
 	AbstractModel    struct{} // TODO: implement
 	SubDocumentModel struct{}
 	RawModel         struct {
-		Type string `mapstructure:"@type" json:"@type" terminusgo:"name=@type"` // TODO: implement
+		Type string `mapstructure:"@type" terminusgo:"name=@type"` // TODO: implement
 	}
 	// TODO: implement Documentation
 )
@@ -63,6 +63,7 @@ func serializeObject(buf map[string]any, object reflect.Value, typeName string, 
 		fldVal := object.Field(i)
 		fldName := fld.Name
 		fldTypeName := typeName // `object`'s "@type" value
+		untyped := false
 		if !fld.IsExported() {
 			continue
 		}
@@ -84,6 +85,9 @@ func serializeObject(buf map[string]any, object reflect.Value, typeName string, 
 			if n, s, ok := getFieldSchema(fld); ok {
 				fldName = n
 				fldTypeName = s.Class
+				if _, ok2 := s.Tags["untyped_object"]; ok2 {
+					untyped = true
+				}
 			} else {
 				continue
 			}
@@ -100,11 +104,12 @@ func serializeObject(buf map[string]any, object reflect.Value, typeName string, 
 			if err != nil {
 				return err
 			}
+			if untyped || fld.Anonymous {
+				delete(m, "@type")
+			}
 			if fld.Anonymous { // Extend res map
 				for k, v := range m {
-					if k != "@type" {
-						buf[k] = v
-					}
+					buf[k] = v
 				}
 			} else { // Set res in a field
 				buf[fldName] = m
@@ -129,7 +134,11 @@ func serializeObject(buf map[string]any, object reflect.Value, typeName string, 
 }
 
 func (c *Class) FromValue(obj any) {
-	mdlType := reflect.ValueOf(obj).Type()
+	mdlVal := reflect.ValueOf(obj).Elem()
+	if !mdlVal.IsValid() {
+		panic("obj is nil")
+	}
+	mdlType := mdlVal.Type()
 	if mdlType.Kind() != reflect.Struct {
 		panic("obj must be a struct")
 	}

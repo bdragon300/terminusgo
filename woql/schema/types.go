@@ -9,23 +9,23 @@ import (
 
 type DictionaryTemplate struct {
 	*schema.SubDocumentModel
-	Data []FieldValuePair `json:"data" terminusgo:"type=Set"`
+	Data []FieldValuePair `terminusgo:"type=Set"`
 }
 
 type FieldValuePair struct {
 	*schema.SubDocumentModel
-	Field string `json:"field"`
-	Value Value  `json:"value"`
+	Field string
+	Value Value
 }
 
 type Value struct {
 	// TODO: type is TaggedUnion
 	*schema.SubDocumentModel
-	Dictionary DictionaryTemplate `json:"dictionary"` // TODO: field does not used anywhere
-	List       []Value            `json:"list"`
-	Node       string             `json:"node"`
-	Variable   string             `json:"variable"`
-	Data       any                `json:"data" terminusgo:"class=xsd:anySimpleType"`
+	Dictionary DictionaryTemplate // TODO: field does not used anywhere
+	List       []Value
+	Node       string
+	Variable   string
+	Data       any `terminusgo:"class=xsd:anySimpleType"`
 }
 
 func (v *Value) FromVariableName(value string) {
@@ -49,8 +49,8 @@ func (v *Value) FromAnyValue(value any) {
 type NodeValue struct {
 	// TODO: type is TaggedUnion
 	*schema.SubDocumentModel
-	Node     string `json:"node"`
-	Variable string `json:"variable"`
+	Node     string
+	Variable string
 }
 
 func (v *NodeValue) FromVariableName(value string) {
@@ -64,9 +64,9 @@ func (v *NodeValue) FromString(value string, _ bool) {
 type DataValue struct {
 	// TODO: type is TaggedUnion
 	*schema.SubDocumentModel
-	List     []DataValue `json:"list"`
-	Data     any         `json:"data" terminusgo:"class=xsd:anySimpleType"`
-	Variable string      `json:"variable"`
+	List     []DataValue
+	Data     any `terminusgo:"class=xsd:anySimpleType"`
+	Variable string
 }
 
 func (v *DataValue) FromVariableName(value string) {
@@ -92,22 +92,22 @@ func (v *DataValue) FromAnyValue(value any) {
 type Indicator struct {
 	// TODO: type is TaggedUnion
 	*schema.SubDocumentModel
-	Name  string `json:"name"`
-	Index uint   `json:"index"`
+	Name  string
+	Index uint
 }
 
 type Column struct {
 	*schema.SubDocumentModel
-	Indicator Indicator `json:"indicator"`
-	Variable  string    `json:"variable"`
-	Type      *string   `json:"type"`
+	Indicator Indicator
+	Variable  string
+	Type      *string
 }
 
 type Source struct {
 	// TODO: type is TaggedUnion
 	*schema.SubDocumentModel
-	Post string `json:"post"`
-	URL  string `json:"url"`
+	Post string
+	URL  string
 }
 
 type FileOptions interface {
@@ -133,15 +133,15 @@ const (
 // FileOptionsCSV is options list for reading CSV file by TerminusDB
 // For more info see https://www.swi-prolog.org/pldoc/man?predicate=csv//2
 type FileOptionsCSV struct {
-	Separator     string  `json:"separator,omitempty"`
-	IgnoreQuoutes bool    `json:"ignore_quoutes,omitempty"`
-	Strip         bool    `json:"strip,omitempty"`
-	SkipHeader    bool    `json:"skip_header"`
-	Convert       bool    `json:"convert"`
-	Case          CSVCase `json:"case,omitempty"`
-	Functor       string  `json:"functor,omitempty"`
-	Arity         uint    `json:"arity,omitempty"`
-	MatchArity    bool    `json:"match_arity"`
+	Separator     string
+	IgnoreQuoutes bool
+	Strip         bool
+	SkipHeader    bool
+	Convert       bool
+	Case          CSVCase
+	Functor       string
+	Arity         uint
+	MatchArity    bool
 }
 
 func (i FileOptionsCSV) FileFormatType() FormatType {
@@ -173,11 +173,11 @@ const (
 // FileOptionsTurtle is options list for reading CSV file by TerminusDB
 // For more info see https://www.swi-prolog.org/pldoc/man?predicate=rdf_read_turtle/3
 type FileOptionsTurtle struct {
-	BaseURL    string          `json:"base_url,omitempty"`
-	AnonPrefix string          `json:"anon_prefix,omitempty"`
-	Format     TurtleFormat    `json:"format,omitempty"`
-	Resources  TurtleResources `json:"resources,omitempty"`
-	OnError    TurtleOnError   `json:"on_error,omitempty"`
+	BaseURL    string
+	AnonPrefix string
+	Format     TurtleFormat
+	Resources  TurtleResources
+	OnError    TurtleOnError
 }
 
 func (i FileOptionsTurtle) FileFormatType() FormatType {
@@ -193,13 +193,13 @@ const (
 
 type OrderTemplate struct {
 	*schema.SubDocumentModel
-	Order    OrderDirection `json:"order"`
-	Variable string         `json:"variable"`
+	Order    OrderDirection
+	Variable string
 }
 
 type Literal struct {
 	schema.RawModel
-	Value any `json:"@value"`
+	Value any
 }
 
 func (s *Literal) FromAnyValue(value any) {
@@ -214,6 +214,6 @@ func (s *Literal) FromAnyValue(value any) {
 	}
 	panic(fmt.Sprintf(
 		"Cannot determine schema type of value with type %T, "+
-			"maybe it's needed to define type (see schema.DefineTypeClass() or schema.DefinePrimitiveTypeClass)?", value,
+			"maybe it's needed to define a type (see schema.DefineTypeClass() or schema.DefinePrimitiveTypeClass)?", value,
 	))
 }

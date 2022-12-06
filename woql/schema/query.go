@@ -8,22 +8,22 @@ import "github.com/bdragon300/terminusgo/schema"
 // TODO: check schema against json_woql.pl
 
 type NamedQuery struct {
-	Name  string  `json:"name"`
-	Query Querier `json:"query" terminusgo:"type=Class,class=Query"`
+	Name     string
+	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
 }
 
 func (n NamedQuery) GetSubQuery() Querier {
-	return n.Query
+	return n.SubQuery
 }
 
 type NamedParametricQuery struct {
-	Name       string   `json:"name"`
-	Parameters []string `json:"parameters"`
-	Query      Querier  `json:"query" terminusgo:"type=Class,class=Query"`
+	Name       string
+	Parameters []string
+	SubQuery   Querier `json:"query" terminusgo:"type=Class,class=Query,name=query"`
 }
 
 func (n NamedParametricQuery) GetSubQuery() Querier {
-	return n.Query
+	return n.SubQuery
 }
 
 type Querier interface {
@@ -47,16 +47,16 @@ type SubQuerier interface { // FIXME: seems that not needed
 
 type Path struct {
 	Query
-	Subject Value           `json:"subject"`
-	Pattern PathPatternType `json:"pattern" terminusgo:"type=Class,class=PathPattern"`
-	Object  Value           `json:"object"`
-	Path    *Value          `json:"path"`
+	Subject Value
+	Pattern PathPatternType `terminusgo:"type=Class,class=PathPattern"`
+	Object  Value
+	Path    *Value
 }
 
 type Using struct {
 	Query
-	SubQuery   Querier `json:"query" terminusgo:"type=Class,class=Query"`
-	Collection string  `json:"collection"`
+	SubQuery   Querier `terminusgo:"type=Class,class=Query,name=query"`
+	Collection string
 }
 
 func (n Using) GetSubQuery() Querier {
@@ -65,8 +65,8 @@ func (n Using) GetSubQuery() Querier {
 
 type Select struct {
 	Query
-	SubQuery  Querier  `json:"query" terminusgo:"type=Class,class=Query"`
-	Variables []string `json:"variables"`
+	SubQuery  Querier `json:"query" terminusgo:"type=Class,class=Query,name=query"`
+	Variables []string
 }
 
 func (n Select) GetSubQuery() Querier {
@@ -75,8 +75,8 @@ func (n Select) GetSubQuery() Querier {
 
 type Distinct struct {
 	Query
-	SubQuery  Querier  `json:"query" terminusgo:"type=Class,class=Query"`
-	Variables []string `json:"variables"`
+	SubQuery  Querier `terminusgo:"type=Class,class=Query,name=query"`
+	Variables []string
 }
 
 func (n Distinct) GetSubQuery() Querier {
@@ -85,18 +85,18 @@ func (n Distinct) GetSubQuery() Querier {
 
 type And struct {
 	Query
-	And []Querier `json:"and" terminusgo:"type=List,class=Query"`
+	And []Querier `terminusgo:"type=List,class=Query"`
 }
 
 type Or struct {
 	Query
-	Or []Querier `json:"or" terminusgo:"type=List,class=Query"`
+	Or []Querier `terminusgo:"type=List,class=Query"`
 }
 
 type From struct {
 	Query
-	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
-	Graph    string  `json:"graph"`
+	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
+	Graph    string
 }
 
 func (n From) GetSubQuery() Querier {
@@ -105,8 +105,8 @@ func (n From) GetSubQuery() Querier {
 
 type Into struct {
 	Query
-	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
-	Graph    string  `json:"graph"`
+	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
+	Graph    string
 }
 
 func (n Into) GetSubQuery() Querier {
@@ -115,217 +115,217 @@ func (n Into) GetSubQuery() Querier {
 
 type Triple struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    Value     `json:"object"`
-	Graph     *string   `json:"graph"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    Value
+	Graph     *string
 }
 
 type AddTriple struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    Value     `json:"object"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    Value
 }
 
 type AddedTriple struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    Value     `json:"object"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    Value
 }
 
 type DeleteTriple struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    Value     `json:"object"`
-	Graph     *string   `json:"graph"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    Value
+	Graph     *string
 }
 
 type RemovedTriple struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    Value     `json:"object"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    Value
 }
 
 type AddQuad struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    Value     `json:"object"`
-	Graph     string    `json:"graph"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    Value
+	Graph     string
 }
 
 type AddedQuad struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    Value     `json:"object"`
-	Graph     string    `json:"graph"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    Value
+	Graph     string
 }
 
 type RemovedQuad struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    Value     `json:"object"`
-	Graph     string    `json:"graph"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    Value
+	Graph     string
 }
 
 // TODO: not used
 type Link struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    NodeValue `json:"object"`
-	Graph     *string   `json:"graph"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    NodeValue
+	Graph     *string
 }
 
 type Data struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    DataValue `json:"object"`
-	Graph     *string   `json:"graph"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    DataValue
+	Graph     *string
 }
 
 type Subsumption struct {
 	Query
-	Child  NodeValue `json:"child"`
-	Parent NodeValue `json:"parent"`
+	Child  NodeValue
+	Parent NodeValue
 }
 
 type Equals struct {
 	Query
-	Left  DataValue `json:"left"`
-	Right DataValue `json:"right"`
+	Left  DataValue
+	Right DataValue
 }
 
 type SubString struct {
 	Query
-	String    DataValue `json:"string"`
-	Length    DataValue `json:"length"`
-	Before    DataValue `json:"before"`
-	After     DataValue `json:"after"`
-	SubString DataValue `json:"substring"`
+	String    DataValue
+	Length    DataValue
+	Before    DataValue
+	After     DataValue
+	SubString DataValue `terminusgo:"name=substring"`
 }
 
 type ReadDocument struct {
 	Query
-	Document   Value     `json:"document"`
-	Identifier NodeValue `json:"identifier"`
+	Document   Value
+	Identifier NodeValue
 }
 
 type UpdateDocument struct {
 	Query
-	Document   Value      `json:"document"`
-	Identifier *NodeValue `json:"identifier"`
+	Document   Value
+	Identifier *NodeValue
 }
 
 type InsertDocument struct {
 	Query
-	Document   Value      `json:"document"`
-	Identifier *NodeValue `json:"identifier"`
+	Document   Value
+	Identifier *NodeValue
 }
 
 type DeleteDocument struct {
 	Query
-	Identifier NodeValue `json:"identifier"`
+	Identifier NodeValue
 }
 
 type ReadObject struct {
 	Query
-	Identifier NodeValue `json:"identifier"`
-	Document   Value     `json:"document"`
+	Identifier NodeValue
+	Document   Value
 }
 
 type UpdateObject struct {
 	Query
-	Document Value `json:"document"`
+	Document Value
 }
 
 type DeleteObject struct {
 	Query
-	Identifier NodeValue `json:"identifier"`
+	Identifier NodeValue
 }
 
 type QueryResource struct {
 	// TODO: type is TaggedUnion
 	*schema.SubDocumentModel
-	Source  Source      `json:"source"`
-	Format  FormatType  `json:"format"`
-	Options FileOptions `json:"options" terminusgo:"class=xdd:json,optional"`
+	Source  Source
+	Format  FormatType
+	Options FileOptions `terminusgo:"class=xdd:json,optional,untyped_object"`
 }
 
 type Get struct {
 	Query
-	Columns   []Column      `json:"columns"`
-	Resource  QueryResource `json:"resource"`
-	HasHeader *bool         `json:"has_header"`
+	Columns   []Column
+	Resource  QueryResource
+	HasHeader *bool
 }
 
 type Put struct {
 	Query
 	Columns  []Column
-	SubQuery Querier `terminusgo:"type=Class,class=Query"`
+	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
 	Resource QueryResource
 }
 
 type AddedData struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    DataValue `json:"object"`
-	Graph     *string   `json:"graph"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    DataValue
+	Graph     *string
 }
 
 type AddLink struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    NodeValue `json:"object"`
-	Graph     *string   `json:"graph"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    NodeValue
+	Graph     *string
 }
 
 type AddedLink struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    NodeValue `json:"object"`
-	Graph     *string   `json:"graph"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    NodeValue
+	Graph     *string
 }
 
 type AddData struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    DataValue `json:"object"`
-	Graph     *string   `json:"graph"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    DataValue
+	Graph     *string
 }
 
 type DeleteLink struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    NodeValue `json:"object"`
-	Graph     *string   `json:"graph"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    NodeValue
+	Graph     *string
 }
 
 type DeletedLink struct {
 	Query
-	Subject   NodeValue `json:"subject"`
-	Predicate NodeValue `json:"predicate"`
-	Object    NodeValue `json:"object"`
-	Graph     *string   `json:"graph"`
+	Subject   NodeValue
+	Predicate NodeValue
+	Object    NodeValue
+	Graph     *string
 }
 
 type If struct {
 	Query
-	Test Querier `json:"test" terminusgo:"type=Class,class=Query"`
-	Then Querier `json:"then" terminusgo:"type=Class,class=Query"`
-	Else Querier `json:"else" terminusgo:"type=Class,class=Query"`
+	Test Querier `terminusgo:"type=Class,class=Query"`
+	Then Querier `terminusgo:"type=Class,class=Query"`
+	Else Querier `terminusgo:"type=Class,class=Query"`
 }
 
 // TODO: implement somehow
@@ -335,46 +335,46 @@ type If struct {
 
 type When struct {
 	Query
-	SubQuery   Querier `json:"query" terminusgo:"type=Class,class=Query"`
-	Consequent Querier `json:"consequent" terminusgo:"type=Class,class=Query"`
+	SubQuery   Querier `terminusgo:"type=Class,class=Query,name=query"`
+	Consequent Querier `terminusgo:"type=Class,class=Query"`
 }
 
 // TODO: implement SubQuerier
 
 type Trim struct {
 	Query
-	Untrimmed DataValue `json:"untrimmed"`
-	Trimmed   DataValue `json:"trimmed"`
+	Untrimmed DataValue
+	Trimmed   DataValue
 }
 
 type IsA struct {
 	Query
-	Element NodeValue `json:"element"`
-	Type    NodeValue `json:"type"`
+	Element NodeValue
+	Type    NodeValue
 }
 
 type Like struct {
 	Query
-	Left       DataValue `json:"left"`
-	Right      DataValue `json:"right"`
-	Similarity DataValue `json:"similarity"` // FIXME: figure out why it's of type Value in python client
+	Left       DataValue
+	Right      DataValue
+	Similarity DataValue // FIXME: figure out why it's of type Value in python client
 }
 
 type Less struct {
 	Query
-	Left  DataValue `json:"left"` // FIXME: figure out why these fields have Value type in python client
-	Right DataValue `json:"right"`
+	Left  DataValue // FIXME: figure out why these fields have Value type in python client
+	Right DataValue
 }
 
 type Greater struct {
 	Query
-	Left  DataValue `json:"left"` // FIXME: figure out why these fields have Value type in python client
-	Right DataValue `json:"right"`
+	Left  DataValue // FIXME: figure out why these fields have Value type in python client
+	Right DataValue
 }
 
 type Optional struct {
 	Query
-	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
+	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
 }
 
 func (n Optional) GetSubQuery() Querier {
@@ -383,80 +383,80 @@ func (n Optional) GetSubQuery() Querier {
 
 type LexicalKey struct {
 	Query
-	Base    DataValue   `json:"base"`
-	KeyList []DataValue `json:"key_list"`
-	URI     NodeValue   `json:"uri"`
+	Base    DataValue
+	KeyList []DataValue
+	URI     NodeValue
 }
 
 type RandomKey struct {
 	Query
-	Base DataValue `json:"base"`
-	URI  NodeValue `json:"uri"`
+	Base DataValue
+	URI  NodeValue
 }
 
 type HashKey struct {
 	Query
-	Base    DataValue   `json:"base"`
-	KeyList []DataValue `json:"key_list"`
-	URI     NodeValue   `json:"uri"`
+	Base    DataValue
+	KeyList []DataValue
+	URI     NodeValue
 }
 
 type Upper struct {
 	Query
-	Mixed DataValue `json:"mixed"`
-	Upper DataValue `json:"upper"`
+	Mixed DataValue
+	Upper DataValue
 }
 
 type Lower struct {
 	Query
-	Mixed DataValue `json:"mixed"`
-	Lower DataValue `json:"lower"`
+	Mixed DataValue
+	Lower DataValue
 }
 
 type Pad struct {
 	Query
-	String DataValue `json:"string"`
-	Char   DataValue `json:"char"`
-	Times  DataValue `json:"times"`
-	Result DataValue `json:"result"`
+	String DataValue
+	Char   DataValue
+	Times  DataValue
+	Result DataValue
 }
 
 type Split struct {
 	Query
-	String  DataValue `json:"string"`
-	Pattern DataValue `json:"pattern"`
-	List    DataValue `json:"list"`
+	String  DataValue
+	Pattern DataValue
+	List    DataValue
 }
 
 type Member struct {
 	Query
-	Member DataValue `json:"member"`
-	List   DataValue `json:"list"`
+	Member DataValue
+	List   DataValue
 }
 
 type Concatenate struct {
 	Query
-	List   DataValue `json:"list"`
-	Result DataValue `json:"result"`
+	List   DataValue
+	Result DataValue
 }
 
 type Join struct {
 	Query
-	List      DataValue `json:"list"`
-	Separator DataValue `json:"separator"`
-	Result    DataValue `json:"result"`
+	List      DataValue
+	Separator DataValue
+	Result    DataValue
 }
 
 type Sum struct {
 	Query
-	List   DataValue `json:"list"`
-	Result DataValue `json:"result"`
+	List   DataValue
+	Result DataValue
 }
 
 type Start struct {
 	Query
-	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
-	Start    uint    `json:"start"`
+	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
+	Start    uint
 }
 
 func (n Start) GetSubQuery() Querier {
@@ -465,8 +465,8 @@ func (n Start) GetSubQuery() Querier {
 
 type Limit struct {
 	Query
-	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
-	Limit    uint    `json:"limit"`
+	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
+	Limit    uint
 }
 
 func (n Limit) GetSubQuery() Querier {
@@ -475,9 +475,9 @@ func (n Limit) GetSubQuery() Querier {
 
 type Regexp struct {
 	Query
-	Pattern DataValue `json:"pattern"`
-	String  DataValue `json:"string"`
-	Result  DataValue `json:"result"`
+	Pattern DataValue
+	String  DataValue
+	Result  DataValue
 }
 
 type True struct {
@@ -486,8 +486,8 @@ type True struct {
 
 type OrderBy struct {
 	Query
-	SubQuery Querier         `json:"query" terminusgo:"type=Class,class=Query"`
-	Ordering []OrderTemplate `json:"ordering"`
+	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
+	Ordering []OrderTemplate
 }
 
 func (n OrderBy) GetSubQuery() Querier {
@@ -496,10 +496,10 @@ func (n OrderBy) GetSubQuery() Querier {
 
 type GroupBy struct {
 	Query
-	Template Value    `json:"template"`
-	GroupBy  []string `json:"group_by"`
-	SubQuery Querier  `json:"query" terminusgo:"type=Class,class=Query"`
-	Grouped  Value    `json:"grouped"`
+	Template Value
+	GroupBy  []string
+	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query,name=query"`
+	Grouped  Value
 }
 
 func (n GroupBy) GetSubQuery() Querier {
@@ -508,13 +508,13 @@ func (n GroupBy) GetSubQuery() Querier {
 
 type Length struct {
 	Query
-	List   DataValue `json:"list"`
-	Length DataValue `json:"length"`
+	List   DataValue
+	Length DataValue
 }
 
 type Not struct {
 	Query
-	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
+	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
 }
 
 func (n Not) GetSubQuery() Querier {
@@ -523,7 +523,7 @@ func (n Not) GetSubQuery() Querier {
 
 type Once struct {
 	Query
-	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
+	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
 }
 
 func (n Once) GetSubQuery() Querier {
@@ -532,7 +532,7 @@ func (n Once) GetSubQuery() Querier {
 
 type Immediately struct {
 	Query
-	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query"`
+	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
 }
 
 func (n Immediately) GetSubQuery() Querier {
@@ -541,8 +541,8 @@ func (n Immediately) GetSubQuery() Querier {
 
 type Count struct {
 	Query
-	SubQuery Querier   `json:"query" terminusgo:"type=Class,class=Query"`
-	Count    DataValue `json:"count"`
+	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
+	Count    DataValue
 }
 
 func (n Count) GetSubQuery() Querier {
@@ -551,38 +551,38 @@ func (n Count) GetSubQuery() Querier {
 
 type Typecast struct {
 	Query
-	Value  Value     `json:"value"`
-	Type   NodeValue `json:"type"`
-	Result Value     `json:"result"`
+	Value  Value
+	Type   NodeValue
+	Result Value
 }
 
 type Dot struct {
 	Query
-	Document DataValue `json:"document"`
-	Field    DataValue `json:"field"`
-	Value    DataValue `json:"value"`
+	Document DataValue
+	Field    DataValue
+	Value    DataValue
 }
 
 type Size struct {
 	Query
-	Resource string    `json:"resource"`
-	Size     DataValue `json:"size"`
+	Resource string
+	Size     DataValue
 }
 
 type TripleCount struct {
 	Query
-	Resource string    `json:"resource"`
-	Count    DataValue `json:"count"`
+	Resource string
+	Count    DataValue
 }
 
 type TypeOf struct {
 	Query
-	Value Value     `json:"value"`
-	Type  NodeValue `json:"type"`
+	Value Value
+	Type  NodeValue
 }
 
 type Eval struct {
 	Query
-	Expression ArithmeticExpressionType `json:"expression"`
-	Result     ArithmeticValue          `json:"result"`
+	Expression ArithmeticExpressionType
+	Result     ArithmeticValue
 }

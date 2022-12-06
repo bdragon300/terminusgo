@@ -16,37 +16,37 @@ func (p PathPattern) PathPattern() {}
 
 type PathPredicate struct {
 	PathPattern
-	Predicate *string `json:"predicate"`
+	Predicate *string
 }
 
 type InversePathPredicate struct {
 	PathPattern
-	Predicate *string `json:"predicate"`
+	Predicate *string
 }
 
 type PathSequence struct {
 	PathPattern
-	Sequence []PathPattern `json:"sequence"`
+	Sequence []PathPattern
 }
 
 type PathOr struct {
 	PathPattern
-	Or []PathPattern `json:"or"`
+	Or []PathPattern
 }
 
 type PathPlus struct {
 	PathPattern
-	Plus PathPattern `json:"plus"`
+	Plus PathPattern
 }
 
 type PathStar struct {
 	PathPattern
-	Star PathPattern `json:"star"`
+	Star PathPattern
 }
 
 type PathTimes struct {
 	PathPattern
-	Times PathPattern `json:"times"`
-	From  uint        `json:"from"`
-	To    uint        `json:"to"`
+	Times PathPattern
+	From  uint
+	To    uint
 }
