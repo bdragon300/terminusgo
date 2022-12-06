@@ -10,7 +10,11 @@ require (
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20220911224424-aa1f1f12a846
 	github.com/huandu/go-clone v1.4.0
 	github.com/mitchellh/mapstructure v1.5.0
-	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
+)
+
+require (
+	github.com/gobeam/stringy v0.0.5
+	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 )
 
 require (

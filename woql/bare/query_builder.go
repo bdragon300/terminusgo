@@ -1,18 +1,22 @@
 package bare
 
 import (
+	"reflect"
+
+	schema2 "github.com/bdragon300/terminusgo/schema"
 	"github.com/bdragon300/terminusgo/woql/schema"
 	"github.com/huandu/go-clone"
 )
 
 // TODO: maybe it's needed a package for JSON-LD
+// TODO: use unused schema items, despite they not used in js/python client (with checking against db source)
 
 type AggWrapper struct {
 	up    *AggWrapper // Pointer to AggWrapper on the previous subquery level; self for the topmost object
 	Items []schema.Querier
 }
 
-func (a AggWrapper) GetQuery() schema.Querier {
+func (a AggWrapper) GetQueryData() any {
 	if len(a.Items) > 1 {
 		// TODO: flatten nested Ands in one And, nested Ors in one Or (using appropriate functions)
 		return &schema.And{And: a.Items}
@@ -36,13 +40,18 @@ type QueryBuilder struct {
 	cursor *AggWrapper
 }
 
-func (b *QueryBuilder) GetQuery() schema.Querier {
-	return &b.root
+func (b *QueryBuilder) ToRaw(buf map[string]any) error {
+	var convertCb schema2.FieldSerializeMapCallback = func(_ reflect.StructField, _, _ string, value any) any {
+		if v, ok := value.(schema.Querier); ok {
+			return v.GetQueryData()
+		}
+		return value
+	}
+	return schema2.SerializeObject(buf, b.GetQueryData(), convertCb)
 }
 
-func (b *QueryBuilder) Clone() *QueryBuilder {
-	val := clone.Slowly(b)
-	return val.(*QueryBuilder)
+func (b *QueryBuilder) GetQueryData() any {
+	return &b.root
 }
 
 func (b *QueryBuilder) And(subQueries ...schema.Querier) *QueryBuilder {
@@ -653,4 +662,9 @@ func (b *QueryBuilder) Size(resource string, size schema.DataValue) *QueryBuilde
 
 func (b *QueryBuilder) Query() *QueryBuilder {
 	return NewQueryBuilder()
+}
+
+func (b *QueryBuilder) Clone() *QueryBuilder {
+	val := clone.Slowly(b)
+	return val.(*QueryBuilder)
 }

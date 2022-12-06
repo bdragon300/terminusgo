@@ -22,7 +22,7 @@ func (c *Context) Type() ItemType {
 	return EnumSchemaItem
 }
 
-func (c *Context) FromRaw(m RawItem) error {
+func (c *Context) FromRaw(m RawSchemaItem) error {
 	if !hasType(m, ContextSchemaItem) {
 		return errors.New("raw schema has not context type")
 	}
@@ -32,7 +32,7 @@ func (c *Context) FromRaw(m RawItem) error {
 	return nil
 }
 
-func (c *Context) ToRaw(buf RawItem) error {
+func (c *Context) ToRaw(buf RawSchemaItem) error {
 	if err := mapstructure.Decode(c, &buf); err != nil {
 		return err
 	}

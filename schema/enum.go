@@ -12,10 +12,9 @@ type Enum struct {
 	Value []string `mapstructure:"@value" validate:"required"`
 }
 
-func GenerateEnum(name string, enumValues []string) (schema Enum) {
-	schema.ID = name
-	schema.Value = enumValues
-	return
+func (e *Enum) FromValue(name string, enumValues []string) {
+	e.ID = name
+	e.Value = enumValues
 }
 
 func (e *Enum) Type() ItemType {
@@ -26,7 +25,7 @@ func (e *Enum) Name() string {
 	return e.ID
 }
 
-func (e *Enum) FromRaw(m RawItem) error {
+func (e *Enum) FromRaw(m RawSchemaItem) error {
 	if !hasType(m, EnumSchemaItem) {
 		return errors.New("raw schema has not enum type")
 	}
@@ -36,7 +35,7 @@ func (e *Enum) FromRaw(m RawItem) error {
 	return nil
 }
 
-func (e *Enum) ToRaw(buf RawItem) error {
+func (e *Enum) ToRaw(buf RawSchemaItem) error {
 	if err := mapstructure.Decode(e, &buf); err != nil {
 		return err
 	}
@@ -45,7 +44,7 @@ func (e *Enum) ToRaw(buf RawItem) error {
 }
 
 func (e *Enum) MarshalJSON() ([]byte, error) {
-	buf := make(RawItem, 2)
+	buf := make(RawSchemaItem, 2)
 	if err := e.ToRaw(buf); err != nil {
 		return nil, err
 	}
@@ -53,7 +52,7 @@ func (e *Enum) MarshalJSON() ([]byte, error) {
 }
 
 func (e *Enum) UnmarshalJSON(bytes []byte) error {
-	buf := make(RawItem)
+	buf := make(RawSchemaItem)
 	if err := json.Unmarshal(bytes, &buf); err != nil {
 		return err
 	}

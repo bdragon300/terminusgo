@@ -27,7 +27,7 @@ func (n NamedParametricQuery) GetSubQuery() Querier {
 }
 
 type Querier interface {
-	GetQuery() Querier
+	GetQueryData() any
 }
 
 type Query struct {
@@ -35,13 +35,13 @@ type Query struct {
 	*schema.SubDocumentModel
 }
 
-func (q Query) GetQuery() Querier {
+func (q Query) GetQueryData() any {
 	return &q
 }
 
 func (q Query) QueryType() {}
 
-type SubQuerier interface {
+type SubQuerier interface { // FIXME: seems that not needed
 	GetSubQuery() Querier
 }
 

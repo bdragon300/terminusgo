@@ -5,7 +5,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"unicode"
+
+	"github.com/gobeam/stringy"
 )
 
 const tagName = "terminusgo"
@@ -39,6 +40,9 @@ func analyzeModel(mdlTyp reflect.Type) (parents []reflect.Type, grandparents []r
 	for i := 0; i < mdlTyp.NumField(); i++ {
 		fld := mdlTyp.Field(i)
 		fldTyp := fld.Type
+		if !fld.IsExported() {
+			continue // Skip unexported fields
+		}
 
 		if fld.Anonymous {
 			// Extract a type from pointer anon field
@@ -46,7 +50,7 @@ func analyzeModel(mdlTyp reflect.Type) (parents []reflect.Type, grandparents []r
 				fldTyp = fldTyp.Elem()
 			}
 			// Collect fields from all (possibly nested) parent models
-			if fldTyp.Kind() == reflect.Struct {
+			if fldTyp.Kind() == reflect.Struct { // TODO: implement embedded interfaces
 				parents = append(parents, fldTyp) // FIXME: exclude AbstractModel, SubDocumentModel, etc.
 				ps, gps, fs := analyzeModel(fldTyp)
 				grandparents = append(append(grandparents, gps...), ps...)
@@ -56,50 +60,56 @@ func analyzeModel(mdlTyp reflect.Type) (parents []reflect.Type, grandparents []r
 			}
 			continue
 		}
-		if s, ok := getFieldSchema(fld); ok {
-			fields[fld.Name] = s
+		if name, s, ok := getFieldSchema(fld); ok {
+			fields[name] = s
 		}
 	}
 	return
 }
 
-func getFieldSchema(field reflect.StructField) (Field, bool) {
-	fltTyp := field.Type
+func getFieldSchema(field reflect.StructField) (string, Field, bool) {
+	// TODO: cache
+	fldTyp := field.Type
+	fldName := stringy.New(field.Name).SnakeCase().ToLower()
 	schema := Field{}
 
-	if !unicode.IsUpper(rune(field.Name[0])) {
-		return schema, false // Skip private fields
+	if !field.IsExported() {
+		return fldName, schema, false // TODO: test it
 	}
 
-	opts := parseTags(field)
-	if _, ok := opts["-"]; ok {
-		return schema, false // Skip by user request
+	tags := parseTags(field)
+	if _, ok := tags["-"]; ok {
+		return fldName, schema, false // Skip by user request
 	}
 
-	if fltTyp.Kind() == reflect.Ptr {
-		fltTyp = fltTyp.Elem()
+	if fldTyp.Kind() == reflect.Ptr {
+		fldTyp = fldTyp.Elem()
 		schema.Type = FieldTypeOptional
 	}
-	for fltTyp.Kind() == reflect.Slice || fltTyp.Kind() == reflect.Array {
+	for fldTyp.Kind() == reflect.Slice || fldTyp.Kind() == reflect.Array {
 		schema.Dimensions++
 		schema.Type = FieldTypeList
-		fltTyp = fltTyp.Elem()
+		fldTyp = fldTyp.Elem()
 	}
 	if schema.Dimensions > 1 {
 		schema.Type = FieldTypeArray
 	}
-	if t, ok := GetSchemaClass(fltTyp); ok {
+	if t, ok := GetSchemaClass(fldTyp); ok {
 		schema.Class = t
-	} else if fltTyp.Kind() == reflect.Struct {
-		schema.Class = fltTyp.Name()
+	} else if fldTyp.Kind() == reflect.Struct {
+		schema.Class = fldTyp.Name()
 	}
 
-	applyTags(&schema, opts)
+	applyTags(&schema, tags)
 	if schema.Type != FieldTypeForeign && schema.Class == "" {
 		panic(fmt.Sprintf("Unable to determine class for field '%s %s', try to set it manually or mark field as ignored", field.Name, field.Type))
 	}
 
-	return schema, true
+	if n, ok := tags["name"]; ok {
+		fldName = n
+	}
+
+	return fldName, schema, true
 }
 
 func parseTags(field reflect.StructField) (tags map[string]string) {
@@ -120,12 +130,13 @@ func parseTags(field reflect.StructField) (tags map[string]string) {
 	return
 }
 
-func applyTags(schema *Field, opts map[string]string) {
-	// TODO: add nooptional
-	if _, ok := opts["optional"]; ok {
+func applyTags(schema *Field, tags map[string]string) {
+	// TODO: add nooptional -- but it requires reading this tag during object serialization...
+	// TODO: add field name (for serialization, instead of json:xxx)
+	if _, ok := tags["optional"]; ok {
 		schema.Type = FieldTypeOptional
 	}
-	if _, ok := opts["foreign"]; ok {
+	if _, ok := tags["foreign"]; ok {
 		schema.Type = FieldTypeForeign
 		schema.ID = schema.Class
 		schema.Class = ""
@@ -137,7 +148,7 @@ func applyTags(schema *Field, opts map[string]string) {
 		"dimensions":     FieldTypeList,
 	}
 	for k, v := range containerTags {
-		if val, ok := opts[k]; ok {
+		if val, ok := tags[k]; ok {
 			schema.Type = v
 			if v, err := strconv.Atoi(val); err == nil {
 				k := strings.ToUpper(string(k[0])) + k[1:] // strings.Title is deprecated, don't want to add a library only for one small thing
@@ -150,10 +161,10 @@ func applyTags(schema *Field, opts map[string]string) {
 	if schema.Dimensions > 1 {
 		schema.Type = FieldTypeArray
 	}
-	if val, ok := opts["type"]; ok {
+	if val, ok := tags["type"]; ok {
 		schema.Type = FieldType(val)
 	}
-	if val, ok := opts["class"]; ok {
+	if val, ok := tags["class"]; ok {
 		schema.Class = val
 	}
 }

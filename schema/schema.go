@@ -8,8 +8,8 @@ import (
 )
 
 type RawConverter interface {
-	FromRaw(RawItem) error
-	ToRaw(RawItem) error // FIXME: maybe make parameter as pointer?
+	FromRaw(RawSchemaItem) error
+	ToRaw(RawSchemaItem) error // FIXME: maybe make parameter as pointer?
 }
 
 type ItemType string
@@ -22,13 +22,13 @@ const (
 	ContextSchemaItem     ItemType = "context"     // Ad-hoc type, not used in real schema
 )
 
-type RawItem map[string]any
+type RawSchemaItem map[string]any
 
-func (rsi RawItem) ToSchemaItem(schemaItemBuf RawConverter) error {
+func (rsi RawSchemaItem) ToSchemaItem(schemaItemBuf RawConverter) error {
 	return schemaItemBuf.FromRaw(rsi)
 }
 
-func (rsi RawItem) Type() (ItemType, error) {
+func (rsi RawSchemaItem) Type() (ItemType, error) {
 	variants := [5]ItemType{ContextSchemaItem, ClassSchemaItem, EnumSchemaItem, TaggedUnionSchemaItem, UnitSchemaItem}
 	for _, t := range variants {
 		if hasType(rsi, t) {
@@ -43,7 +43,7 @@ type Schema struct {
 	SchemaItems []RawConverter
 }
 
-func (s *Schema) FromRawSchema(items []RawItem) error {
+func (s *Schema) FromRawSchema(items []RawSchemaItem) error {
 	if len(items) == 0 {
 		return errors.New("empty schema")
 	}
@@ -57,15 +57,15 @@ func (s *Schema) FromRawSchema(items []RawItem) error {
 	return nil
 }
 
-func (s *Schema) ToRawSchema(buf []RawItem) error {
-	buf2 := make(RawItem)
+func (s *Schema) ToRawSchema(buf []RawSchemaItem) error {
+	buf2 := make(RawSchemaItem)
 	if err := s.Context.ToRaw(buf2); err != nil {
 		return fmt.Errorf("unable to convert context object to raw schema: %w", err)
 	}
 	buf = append(buf[:0], buf2)
 
 	for ind, v := range s.SchemaItems {
-		buf2 = make(RawItem)
+		buf2 = make(RawSchemaItem)
 		if err := v.ToRaw(buf2); err != nil {
 			return fmt.Errorf("unable to convert schema item object to raw schema at index %d: %w", ind, err)
 		}
@@ -115,7 +115,7 @@ func (s *Schema) Validate() error {
 }
 
 func (s *Schema) MarshalJSON() ([]byte, error) {
-	buf := make([]RawItem, 0, len(s.SchemaItems)+1)
+	buf := make([]RawSchemaItem, 0, len(s.SchemaItems)+1)
 	if err := s.ToRawSchema(buf); err != nil {
 		return nil, err
 	}
@@ -123,14 +123,14 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 }
 
 func (s *Schema) UnmarshalJSON(bytes []byte) error {
-	buf := make([]RawItem, 0)
+	buf := make([]RawSchemaItem, 0)
 	if err := json.Unmarshal(bytes, &buf); err != nil {
 		return err
 	}
 	return s.FromRawSchema(buf)
 }
 
-func hasType(item RawItem, typ ItemType) bool {
+func hasType(item RawSchemaItem, typ ItemType) bool {
 	if val, ok := item["@type"]; ok {
 		return val.(string) == string(typ)
 	}
@@ -140,7 +140,7 @@ func hasType(item RawItem, typ ItemType) bool {
 	return false
 }
 
-func produceSchemaItem(m RawItem) (RawConverter, error) {
+func produceSchemaItem(m RawSchemaItem) (RawConverter, error) {
 	var res RawConverter
 	factories := map[ItemType]func() RawConverter{
 		ClassSchemaItem: func() RawConverter { return &Class{} },

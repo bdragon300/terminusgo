@@ -39,8 +39,12 @@ type QueryBuilder struct {
 	// TODO: errors member (multierror package)
 }
 
-func (b *QueryBuilder) GetQuery() schema.Querier {
-	return b.Bare.GetQuery()
+func (b *QueryBuilder) ToRaw(buf map[string]any) error {
+	return b.Bare.ToRaw(buf)
+}
+
+func (b *QueryBuilder) GetQueryData() any {
+	return b.Bare.GetQueryData()
 }
 
 func (b *QueryBuilder) Clone() *QueryBuilder {
