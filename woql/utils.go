@@ -8,6 +8,38 @@ import (
 	"github.com/bdragon300/terminusgo/woql/schema"
 )
 
+var defaultVocabulary = map[string]string{
+	"type":             "rdf:type",
+	"label":            "rdfs:label",
+	"Class":            "owl:Class",
+	"DatatypeProperty": "owl:DatatypeProperty",
+	"ObjectProperty":   "owl:ObjectProperty",
+	"Document":         "terminus:Document",
+	"abstract":         "terminus:Document",
+	"comment":          "rdfs:comment",
+	"range":            "rdfs:range",
+	"domain":           "rdfs:domain",
+	"subClassOf":       "rdfs:subClassOf",
+	"boolean":          "xsd:boolean",
+	"string":           "xsd:string",
+	"integer":          "xsd:integer",
+	"decimal":          "xsd:decimal",
+	"email":            "xdd:email",
+	"json":             "xdd:json",
+	"dateTime":         "xsd:dateTime",
+	"date":             "xsd:date",
+	"coordinate":       "xdd:coordinate",
+	"line":             "xdd:coordinatePolyline",
+	"polygon":          "xdd:coordinatePolygon",
+}
+
+func fromVocab[T ~string](qb *QueryBuilder, val T) T {
+	if v, ok := qb.vocabulary[string(val)]; ok {
+		return T(v)
+	}
+	return val
+}
+
 type variableConvertable interface {
 	FromVariableName(string)
 }

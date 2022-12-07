@@ -73,8 +73,8 @@ func (v *DataValue) FromVariableName(value string) {
 	v.Variable = value
 }
 
-func (v *DataValue) FromString(value string, forceLiteral bool) {
-	if forceLiteral {
+func (v *DataValue) FromString(value string, preferLiteral bool) {
+	if preferLiteral {
 		newVal := &Literal{}
 		newVal.FromAnyValue(value)
 		v.Data = *newVal

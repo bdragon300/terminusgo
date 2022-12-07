@@ -12,7 +12,7 @@ import (
 // TODO: implement Get/Put (require .As() to be implemented)
 
 func NewSimpleQueryBuilder() *QueryBuilder {
-	return &QueryBuilder{bare.NewQueryBuilder()}
+	return &QueryBuilder{Bare: bare.NewQueryBuilder(), vocabulary: defaultVocabulary}
 }
 
 type (
@@ -36,8 +36,14 @@ type numOrVarWrapper struct {
 }
 
 type QueryBuilder struct {
-	Bare *bare.QueryBuilder
+	Bare       *bare.QueryBuilder
+	vocabulary map[string]string
 	// TODO: errors member (multierror package)
+}
+
+func (b *QueryBuilder) WithVocabulary(vocab map[string]string) *QueryBuilder {
+	b.vocabulary = vocab
+	return b
 }
 
 func (b *QueryBuilder) ToRaw(buf map[string]any) error {
@@ -49,15 +55,15 @@ func (b *QueryBuilder) GetQueryData() any {
 }
 
 func (b *QueryBuilder) Clone() *QueryBuilder {
-	return wrapBareQB(b.Bare.Clone())
+	return b.clone(b.Bare.Clone())
 }
 
 func (b *QueryBuilder) And(subQueries ...schema.Querier) *QueryBuilder {
-	return wrapBareQB(b.Bare.And(subQueries...))
+	return b.clone(b.Bare.And(subQueries...))
 }
 
 func (b *QueryBuilder) Not(query schema.Querier) *QueryBuilder {
-	return wrapBareQB(b.Bare.Not(query))
+	return b.clone(b.Bare.Not(query))
 }
 
 func (b *QueryBuilder) Select(vars ...Variable) *QueryBuilder {
@@ -69,15 +75,15 @@ func (b *QueryBuilder) Select(vars ...Variable) *QueryBuilder {
 			panic(fmt.Sprintf("Value %q is not a variable", v)) // TODO: keep error instead of panic
 		}
 	}
-	return wrapBareQB(b.Bare.Select(params))
+	return b.clone(b.Bare.Select(params))
 }
 
 func (b *QueryBuilder) From(graph string, subQuery schema.Querier) *QueryBuilder {
-	return wrapBareQB(b.Bare.From(graph, subQuery))
+	return b.clone(b.Bare.From(graph, subQuery))
 }
 
 func (b *QueryBuilder) Using(collection string, subQuery schema.Querier) *QueryBuilder {
-	return wrapBareQB(b.Bare.Using(collection, subQuery))
+	return b.clone(b.Bare.Using(collection, subQuery))
 }
 
 func (b *QueryBuilder) Distinct(vars ...Variable) *QueryBuilder {
@@ -89,11 +95,11 @@ func (b *QueryBuilder) Distinct(vars ...Variable) *QueryBuilder {
 			panic(fmt.Sprintf("Value %q is not a variable", v)) // TODO: keep error instead of panic
 		}
 	}
-	return wrapBareQB(b.Bare.Distinct(params))
+	return b.clone(b.Bare.Distinct(params))
 }
 
 func (b *QueryBuilder) Into(graph string, subQuery schema.Querier) *QueryBuilder {
-	return wrapBareQB(b.Bare.Into(graph, subQuery))
+	return b.clone(b.Bare.Into(graph, subQuery))
 }
 
 func (b *QueryBuilder) OrderBy(vars map[Variable]schema.OrderDirection) *QueryBuilder {
@@ -108,7 +114,7 @@ func (b *QueryBuilder) OrderBy(vars map[Variable]schema.OrderDirection) *QueryBu
 			panic(fmt.Sprintf("Value %q is not a variable", v)) // TODO: keep error instead of panic
 		}
 	}
-	return wrapBareQB(b.Bare.OrderBy(ordering))
+	return b.clone(b.Bare.OrderBy(ordering))
 }
 
 func (b *QueryBuilder) GroupBy(groupVars []Variable, templateVars []Variable, outputVar Variable, subQuery schema.Querier) *QueryBuilder {
@@ -124,7 +130,7 @@ func (b *QueryBuilder) GroupBy(groupVars []Variable, templateVars []Variable, ou
 	for _, v := range templateVars {
 		tplVars = append(tplVars, *parseVariable(v, &schema.Value{}, false))
 	}
-	return wrapBareQB(b.Bare.GroupBy(
+	return b.clone(b.Bare.GroupBy(
 		grpVars,
 		schema.Value{List: tplVars},
 		*parseVariable(outputVar, &schema.Value{}, false),
@@ -133,48 +139,48 @@ func (b *QueryBuilder) GroupBy(groupVars []Variable, templateVars []Variable, ou
 }
 
 func (b *QueryBuilder) TripleCount(resourceID string, countVar IntegerOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.TripleCount(
+	return b.clone(b.Bare.TripleCount(
 		resourceID,
 		*parseVariable(intOrVarWrapper{countVar}, &schema.DataValue{}, false),
 	))
 }
 
 func (b *QueryBuilder) Triple(subject, predicate, object StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Triple(
-		*parseVariable(subject, &schema.NodeValue{}, false),
-		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
+	return b.clone(b.Bare.Triple(
+		*parseVariable(fromVocab(b, subject), &schema.NodeValue{}, false),
+		*parseVariable(fromVocab(b, predicate), &schema.NodeValue{}, false),
 		*parseVariable(object, &schema.Value{}, false),
 	))
 }
 
 func (b *QueryBuilder) AddTriple(subject, predicate, object StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.AddTriple(
-		*parseVariable(subject, &schema.NodeValue{}, false),
-		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
+	return b.clone(b.Bare.AddTriple(
+		*parseVariable(fromVocab(b, subject), &schema.NodeValue{}, false),
+		*parseVariable(fromVocab(b, predicate), &schema.NodeValue{}, false),
 		*parseVariable(object, &schema.Value{}, false),
 	))
 }
 
 func (b *QueryBuilder) AddedTriple(subject, predicate, object StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.AddedTriple(
-		*parseVariable(subject, &schema.NodeValue{}, false),
-		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
+	return b.clone(b.Bare.AddedTriple(
+		*parseVariable(fromVocab(b, subject), &schema.NodeValue{}, false),
+		*parseVariable(fromVocab(b, predicate), &schema.NodeValue{}, false),
 		*parseVariable(object, &schema.Value{}, false),
 	))
 }
 
 func (b *QueryBuilder) DeleteTriple(subject, predicate, object StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.DeleteTriple(
-		*parseVariable(subject, &schema.NodeValue{}, false),
-		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
+	return b.clone(b.Bare.DeleteTriple(
+		*parseVariable(fromVocab(b, subject), &schema.NodeValue{}, false),
+		*parseVariable(fromVocab(b, predicate), &schema.NodeValue{}, false),
 		*parseVariable(object, &schema.Value{}, false),
 	))
 }
 
 func (b *QueryBuilder) RemovedTriple(subject, predicate, object StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.RemovedTriple(
-		*parseVariable(subject, &schema.NodeValue{}, false),
-		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
+	return b.clone(b.Bare.RemovedTriple(
+		*parseVariable(fromVocab(b, subject), &schema.NodeValue{}, false),
+		*parseVariable(fromVocab(b, predicate), &schema.NodeValue{}, false),
 		*parseVariable(object, &schema.Value{}, false),
 	))
 }
@@ -193,45 +199,45 @@ func (b *QueryBuilder) UpdateTriple(subject, predicate, newObject StringOrVariab
 }
 
 func (b *QueryBuilder) Quad(subject, predicate, object StringOrVariable, graph string) *QueryBuilder {
-	return wrapBareQB(b.Bare.Quad(
-		*parseVariable(subject, &schema.NodeValue{}, false),
-		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
+	return b.clone(b.Bare.Quad(
+		*parseVariable(fromVocab(b, subject), &schema.NodeValue{}, false),
+		*parseVariable(fromVocab(b, predicate), &schema.NodeValue{}, false),
 		*parseVariable(object, &schema.Value{}, false),
 		graph,
 	))
 }
 
 func (b *QueryBuilder) AddQuad(subject, predicate, object StringOrVariable, graph string) *QueryBuilder {
-	return wrapBareQB(b.Bare.AddQuad(
-		*parseVariable(subject, &schema.NodeValue{}, false),
-		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
+	return b.clone(b.Bare.AddQuad(
+		*parseVariable(fromVocab(b, subject), &schema.NodeValue{}, false),
+		*parseVariable(fromVocab(b, predicate), &schema.NodeValue{}, false),
 		*parseVariable(object, &schema.Value{}, false),
 		graph, // TODO: maybe it's needed to transform graph id? See cleanGraph comment in js client
 	))
 }
 
 func (b *QueryBuilder) AddedQuad(subject, predicate, object StringOrVariable, graph string) *QueryBuilder {
-	return wrapBareQB(b.Bare.AddedQuad(
-		*parseVariable(subject, &schema.NodeValue{}, false),
-		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
+	return b.clone(b.Bare.AddedQuad(
+		*parseVariable(fromVocab(b, subject), &schema.NodeValue{}, false),
+		*parseVariable(fromVocab(b, predicate), &schema.NodeValue{}, false),
 		*parseVariable(object, &schema.Value{}, false),
 		graph,
 	))
 }
 
 func (b *QueryBuilder) DeleteQuad(subject, predicate, object StringOrVariable, graph string) *QueryBuilder {
-	return wrapBareQB(b.Bare.DeleteQuad(
-		*parseVariable(subject, &schema.NodeValue{}, false),
-		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
+	return b.clone(b.Bare.DeleteQuad(
+		*parseVariable(fromVocab(b, subject), &schema.NodeValue{}, false),
+		*parseVariable(fromVocab(b, predicate), &schema.NodeValue{}, false),
 		*parseVariable(object, &schema.Value{}, false),
 		graph,
 	))
 }
 
 func (b *QueryBuilder) RemovedQuad(subject, predicate, object StringOrVariable, graph string) *QueryBuilder {
-	return wrapBareQB(b.Bare.RemovedQuad(
-		*parseVariable(subject, &schema.NodeValue{}, false),
-		*parseVariable(predicate, &schema.NodeValue{}, false), // TODO: vocab
+	return b.clone(b.Bare.RemovedQuad(
+		*parseVariable(fromVocab(b, subject), &schema.NodeValue{}, false),
+		*parseVariable(fromVocab(b, predicate), &schema.NodeValue{}, false),
 		*parseVariable(object, &schema.Value{}, false),
 		graph,
 	))
@@ -251,21 +257,21 @@ func (b *QueryBuilder) UpdateQuad(subject, predicate, newObject StringOrVariable
 }
 
 func (b *QueryBuilder) Subsumption(parent, child StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Subsumption(
+	return b.clone(b.Bare.Subsumption(
 		*parseVariable(parent, &schema.NodeValue{}, false),
 		*parseVariable(child, &schema.NodeValue{}, false),
 	))
 }
 
 func (b *QueryBuilder) Equals(left, right AnyOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Equals(
+	return b.clone(b.Bare.Equals(
 		*parseVariable(left, &schema.DataValue{}, false),
 		*parseVariable(right, &schema.DataValue{}, false),
 	))
 }
 
 func (b *QueryBuilder) SubString(string StringOrVariable, length IntegerOrVariable, substring StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.SubString(
+	return b.clone(b.Bare.SubString(
 		*parseVariable(string, &schema.DataValue{}, true),
 		*parseVariable(intOrVarWrapper{length}, &schema.DataValue{}, true),
 		*parseVariable(substring, &schema.DataValue{}, true),
@@ -275,7 +281,7 @@ func (b *QueryBuilder) SubString(string StringOrVariable, length IntegerOrVariab
 }
 
 func (b *QueryBuilder) SubStringBeforeAfter(string StringOrVariable, before, length, after IntegerOrVariable, substring StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.SubString(
+	return b.clone(b.Bare.SubString(
 		*parseVariable(string, &schema.DataValue{}, true),
 		*parseVariable(intOrVarWrapper{length}, &schema.DataValue{}, true),
 		*parseVariable(substring, &schema.DataValue{}, true),
@@ -289,7 +295,7 @@ func (b *QueryBuilder) UpdateDocument(document map[string]any, iri StringOrVaria
 	if iri != "" {
 		param = parseVariable(iri, &schema.NodeValue{}, false)
 	}
-	return wrapBareQB(b.Bare.UpdateDocument(
+	return b.clone(b.Bare.UpdateDocument(
 		*parseVariable(document, &schema.Value{}, false),
 		param,
 	))
@@ -300,45 +306,45 @@ func (b *QueryBuilder) InsertDocument(document map[string]any, iri StringOrVaria
 	if iri != "" {
 		param = parseVariable(iri, &schema.NodeValue{}, false)
 	}
-	return wrapBareQB(b.Bare.InsertDocument(
+	return b.clone(b.Bare.InsertDocument(
 		*parseVariable(document, &schema.Value{}, false),
 		param,
 	))
 }
 
 func (b *QueryBuilder) DeleteDocument(iri StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.DeleteDocument(
+	return b.clone(b.Bare.DeleteDocument(
 		*parseVariable(iri, &schema.NodeValue{}, false),
 	))
 }
 
 func (b *QueryBuilder) ReadDocument(iri StringOrVariable, outputVar Variable) *QueryBuilder {
-	return wrapBareQB(b.Bare.ReadDocument(
+	return b.clone(b.Bare.ReadDocument(
 		*parseVariable(iri, &schema.NodeValue{}, false),
 		*parseVariable(outputVar, &schema.Value{}, false),
 	))
 }
 
 func (b *QueryBuilder) Once(subQuery schema.Querier) *QueryBuilder {
-	return wrapBareQB(b.Bare.Once(subQuery))
+	return b.clone(b.Bare.Once(subQuery))
 }
 
 func (b *QueryBuilder) Trim(untrimmed, trimmed StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Trim(
+	return b.clone(b.Bare.Trim(
 		*parseVariable(untrimmed, &schema.DataValue{}, true),
 		*parseVariable(trimmed, &schema.DataValue{}, true),
 	))
 }
 
 func (b *QueryBuilder) Upper(left StringOrVariable, right Variable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Upper(
+	return b.clone(b.Bare.Upper(
 		*parseVariable(left, &schema.DataValue{}, true),
 		*parseVariable(right, &schema.DataValue{}, true),
 	))
 }
 
 func (b *QueryBuilder) Lower(left StringOrVariable, right Variable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Lower(
+	return b.clone(b.Bare.Lower(
 		*parseVariable(left, &schema.DataValue{}, true),
 		*parseVariable(right, &schema.DataValue{}, true),
 	))
@@ -349,14 +355,14 @@ func (b *QueryBuilder) ConcatenateList(stringsOrVars []StringOrVariable, result 
 	for _, v := range stringsOrVars {
 		params = append(params, *parseVariable(v, &schema.DataValue{}, true))
 	}
-	return wrapBareQB(b.Bare.Concatenate(
+	return b.clone(b.Bare.Concatenate(
 		schema.DataValue{List: params},
 		*parseVariable(result, &schema.DataValue{}, true),
 	))
 }
 
 func (b *QueryBuilder) Concatenate(listVar Variable, result StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Concatenate(
+	return b.clone(b.Bare.Concatenate(
 		*parseVariable(listVar, &schema.DataValue{}, true),
 		*parseVariable(result, &schema.DataValue{}, true),
 	))
@@ -367,7 +373,7 @@ func (b *QueryBuilder) JoinList(stringsOrVars []StringOrVariable, separator, res
 	for _, v := range stringsOrVars {
 		params = append(params, *parseVariable(v, &schema.DataValue{}, true))
 	}
-	return wrapBareQB(b.Bare.Join(
+	return b.clone(b.Bare.Join(
 		schema.DataValue{List: params},
 		*parseVariable(separator, &schema.DataValue{}, true),
 		*parseVariable(result, &schema.DataValue{}, true),
@@ -375,7 +381,7 @@ func (b *QueryBuilder) JoinList(stringsOrVars []StringOrVariable, separator, res
 }
 
 func (b *QueryBuilder) Join(listVar Variable, separator, result StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Join(
+	return b.clone(b.Bare.Join(
 		*parseVariable(listVar, &schema.DataValue{}, true),
 		*parseVariable(separator, &schema.DataValue{}, true),
 		*parseVariable(result, &schema.DataValue{}, true),
@@ -383,7 +389,7 @@ func (b *QueryBuilder) Join(listVar Variable, separator, result StringOrVariable
 }
 
 func (b *QueryBuilder) Split(varName, separator, resultVar StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Split(
+	return b.clone(b.Bare.Split(
 		*parseVariable(varName, &schema.DataValue{}, true),
 		*parseVariable(separator, &schema.DataValue{}, true),
 		*parseVariable(resultVar, &schema.DataValue{}, true),
@@ -391,7 +397,7 @@ func (b *QueryBuilder) Split(varName, separator, resultVar StringOrVariable) *Qu
 }
 
 func (b *QueryBuilder) Regexp(pattern, str StringOrVariable, result Variable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Regexp(
+	return b.clone(b.Bare.Regexp(
 		*parseVariable(pattern, &schema.DataValue{}, true),
 		*parseVariable(str, &schema.DataValue{}, true),
 		*parseVariable(result, &schema.DataValue{}, true),
@@ -405,7 +411,7 @@ func (b *QueryBuilder) RegexpToList(pattern, str StringOrVariable, result []Stri
 			resParam.List = append(resParam.List, *parseVariable(v, &schema.DataValue{}, true))
 		}
 	}
-	return wrapBareQB(b.Bare.Regexp(
+	return b.clone(b.Bare.Regexp(
 		*parseVariable(pattern, &schema.DataValue{}, true),
 		*parseVariable(str, &schema.DataValue{}, true),
 		resParam,
@@ -413,21 +419,21 @@ func (b *QueryBuilder) RegexpToList(pattern, str StringOrVariable, result []Stri
 }
 
 func (b *QueryBuilder) Eval(arith schema.ArithmeticExpressionType, result Variable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Eval(
+	return b.clone(b.Bare.Eval(
 		arith,
 		*parseVariable(result, &schema.ArithmeticValue{}, true),
 	))
 }
 
 func (b *QueryBuilder) IsA(element, typ StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.IsA(
+	return b.clone(b.Bare.IsA(
 		*parseVariable(element, &schema.NodeValue{}, false),
 		*parseVariable(typ, &schema.NodeValue{}, false),
 	))
 }
 
 func (b *QueryBuilder) Like(left, right StringOrVariable, similarity NumberOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Like(
+	return b.clone(b.Bare.Like(
 		*parseVariable(left, &schema.DataValue{}, true),
 		*parseVariable(right, &schema.DataValue{}, true),
 		*parseVariable(numOrVarWrapper{similarity}, &schema.DataValue{}, true),
@@ -435,21 +441,21 @@ func (b *QueryBuilder) Like(left, right StringOrVariable, similarity NumberOrVar
 }
 
 func (b *QueryBuilder) Less(left, right NumberOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Less(
+	return b.clone(b.Bare.Less(
 		*parseVariable(numOrVarWrapper{left}, &schema.DataValue{}, false),
 		*parseVariable(numOrVarWrapper{right}, &schema.DataValue{}, false),
 	))
 }
 
 func (b *QueryBuilder) Greater(left, right NumberOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Greater(
+	return b.clone(b.Bare.Greater(
 		*parseVariable(numOrVarWrapper{left}, &schema.DataValue{}, false),
 		*parseVariable(numOrVarWrapper{right}, &schema.DataValue{}, false),
 	))
 }
 
 func (b *QueryBuilder) Optional(subQuery schema.Querier) *QueryBuilder {
-	return wrapBareQB(b.Bare.Optional(subQuery))
+	return b.clone(b.Bare.Optional(subQuery))
 }
 
 func (b *QueryBuilder) Unique(prefix string, keyList []StringOrVariable, resultVar Variable) *QueryBuilder {
@@ -457,7 +463,7 @@ func (b *QueryBuilder) Unique(prefix string, keyList []StringOrVariable, resultV
 	for _, v := range keyList {
 		keys = append(keys, *parseVariable(v, &schema.DataValue{}, true))
 	}
-	return wrapBareQB(b.Bare.HashKey(
+	return b.clone(b.Bare.HashKey(
 		*parseString(prefix, &schema.DataValue{}, true),
 		keys,
 		*parseVariable(resultVar, &schema.NodeValue{}, true),
@@ -469,7 +475,7 @@ func (b *QueryBuilder) IDGen(prefix string, keyList []StringOrVariable, resultVa
 	for _, v := range keyList {
 		keys = append(keys, *parseVariable(v, &schema.DataValue{}, true))
 	}
-	return wrapBareQB(b.Bare.LexicalKey(
+	return b.clone(b.Bare.LexicalKey(
 		*parseString(prefix, &schema.DataValue{}, true),
 		keys,
 		*parseVariable(resultVar, &schema.NodeValue{}, true),
@@ -477,7 +483,7 @@ func (b *QueryBuilder) IDGen(prefix string, keyList []StringOrVariable, resultVa
 }
 
 func (b *QueryBuilder) Pad(input, pad StringOrVariable, length IntegerOrVariable, resultVar Variable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Pad(
+	return b.clone(b.Bare.Pad(
 		*parseVariable(input, &schema.DataValue{}, true),
 		*parseVariable(pad, &schema.DataValue{}, true),
 		*parseVariable(intOrVarWrapper{length}, &schema.DataValue{}, true),
@@ -486,7 +492,7 @@ func (b *QueryBuilder) Pad(input, pad StringOrVariable, length IntegerOrVariable
 }
 
 func (b *QueryBuilder) Dot(document, field, value StringOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Dot(
+	return b.clone(b.Bare.Dot(
 		*parseVariable(document, &schema.DataValue{}, false),
 		*parseVariable(field, &schema.DataValue{}, true),
 		*parseVariable(value, &schema.DataValue{}, false),
@@ -494,7 +500,7 @@ func (b *QueryBuilder) Dot(document, field, value StringOrVariable) *QueryBuilde
 }
 
 func (b *QueryBuilder) Member(member, list AnyOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Member(
+	return b.clone(b.Bare.Member(
 		*parseVariable(member, &schema.DataValue{}, false),
 		*parseVariable(list, &schema.DataValue{}, false),
 	))
@@ -505,7 +511,7 @@ func (b *QueryBuilder) MemberOfList(member, list []AnyOrVariable) *QueryBuilder 
 	for _, v := range list {
 		paramList = append(paramList, *parseVariable(v, &schema.DataValue{}, false))
 	}
-	return wrapBareQB(b.Bare.Member(
+	return b.clone(b.Bare.Member(
 		*parseVariable(member, &schema.DataValue{}, false),
 		schema.DataValue{List: paramList},
 	))
@@ -516,51 +522,51 @@ func (b *QueryBuilder) SumList(list []NumberOrVariable, outputVar Variable) *Que
 	for _, v := range list {
 		params = append(params, *parseVariable(numOrVarWrapper{v}, &schema.DataValue{}, true))
 	}
-	return wrapBareQB(b.Bare.Sum(
+	return b.clone(b.Bare.Sum(
 		schema.DataValue{List: params},
 		*parseVariable(outputVar, &schema.DataValue{}, true),
 	))
 }
 
 func (b *QueryBuilder) Sum(listVar, outputVar Variable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Sum(
+	return b.clone(b.Bare.Sum(
 		*parseVariable(listVar, &schema.DataValue{}, true),
 		*parseVariable(outputVar, &schema.DataValue{}, true),
 	))
 }
 
 func (b *QueryBuilder) Start(start uint, subQuery schema.Querier) *QueryBuilder {
-	return wrapBareQB(b.Bare.Start(start, subQuery))
+	return b.clone(b.Bare.Start(start, subQuery))
 }
 
 func (b *QueryBuilder) Limit(limit uint, subQuery schema.Querier) *QueryBuilder {
-	return wrapBareQB(b.Bare.Limit(limit, subQuery))
+	return b.clone(b.Bare.Limit(limit, subQuery))
 }
 
 func (b *QueryBuilder) Length(listVar Variable, resultVar IntegerOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Length(
+	return b.clone(b.Bare.Length(
 		*parseVariable(listVar, &schema.DataValue{}, true),
 		*parseVariable(intOrVarWrapper{resultVar}, &schema.DataValue{}, true),
 	))
 }
 
 func (b *QueryBuilder) LengthList(list []AnyOrVariable, resultVar IntegerOrVariable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Length(
+	return b.clone(b.Bare.Length(
 		*parseVariable(list, &schema.DataValue{}, true),
 		*parseVariable(intOrVarWrapper{resultVar}, &schema.DataValue{}, true),
 	))
 }
 
 func (b *QueryBuilder) Immediately(subQuery schema.Querier) *QueryBuilder {
-	return wrapBareQB(b.Bare.Immediately(subQuery))
+	return b.clone(b.Bare.Immediately(subQuery))
 }
 
 func (b *QueryBuilder) Count(countVar IntegerOrVariable, subQuery schema.Querier) *QueryBuilder {
-	return wrapBareQB(b.Bare.Count(*parseVariable(countVar, &schema.DataValue{}, false), subQuery))
+	return b.clone(b.Bare.Count(*parseVariable(countVar, &schema.DataValue{}, false), subQuery))
 }
 
 func (b *QueryBuilder) TypeCast(value AnyOrVariable, typ StringOrVariable, resultVar Variable) *QueryBuilder {
-	return wrapBareQB(b.Bare.TypeCast(
+	return b.clone(b.Bare.TypeCast(
 		*parseVariable(value, &schema.Value{}, false),
 		*parseVariable(typ, &schema.NodeValue{}, false),
 		*parseVariable(resultVar, &schema.Value{}, false),
@@ -568,14 +574,14 @@ func (b *QueryBuilder) TypeCast(value AnyOrVariable, typ StringOrVariable, resul
 }
 
 func (b *QueryBuilder) TypeOf(value, typ string) *QueryBuilder {
-	return wrapBareQB(b.Bare.TypeOf(
+	return b.clone(b.Bare.TypeOf(
 		*parseString(value, &schema.Value{}, true),
 		*parseString(typ, &schema.NodeValue{}, true),
 	))
 }
 
 func (b *QueryBuilder) True() *QueryBuilder {
-	return wrapBareQB(b.Bare.True())
+	return b.clone(b.Bare.True())
 }
 
 func (b *QueryBuilder) Path(subj StringOrVariable, pattern string, obj StringOrVariable, resultVar Variable) *QueryBuilder {
@@ -587,7 +593,7 @@ func (b *QueryBuilder) Path(subj StringOrVariable, pattern string, obj StringOrV
 	if resultVar != "" {
 		resVar = parseVariable(resultVar, &schema.Value{}, false)
 	}
-	return wrapBareQB(b.Bare.Path(
+	return b.clone(b.Bare.Path(
 		*parseVariable(subj, &schema.Value{}, false),
 		parsedPattern,
 		*parseVariable(obj, &schema.Value{}, false),
@@ -596,7 +602,7 @@ func (b *QueryBuilder) Path(subj StringOrVariable, pattern string, obj StringOrV
 }
 
 func (b *QueryBuilder) Size(graph string, resultVar Variable) *QueryBuilder {
-	return wrapBareQB(b.Bare.Size(
+	return b.clone(b.Bare.Size(
 		graph,
 		*parseVariable(resultVar, &schema.DataValue{}, false),
 	))
@@ -640,6 +646,6 @@ func (b *QueryBuilder) Query() *QueryBuilder {
 	return NewSimpleQueryBuilder()
 }
 
-func wrapBareQB(qb *bare.QueryBuilder) *QueryBuilder {
-	return &QueryBuilder{qb}
+func (b *QueryBuilder) clone(bareQB *bare.QueryBuilder) *QueryBuilder {
+	return &QueryBuilder{Bare: bareQB, vocabulary: b.vocabulary}
 }

@@ -33,8 +33,8 @@ func (v *ArithmeticValue) FromAnyValue(value any) {
 	v.Data = *newVal
 }
 
-func (v *ArithmeticValue) FromString(value string, forceLiteral bool) {
-	if forceLiteral {
+func (v *ArithmeticValue) FromString(value string, preferLiteral bool) {
+	if preferLiteral {
 		newVal := &Literal{}
 		newVal.FromAnyValue(value)
 		v.Data = *newVal
