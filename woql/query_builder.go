@@ -1,8 +1,6 @@
 package woql
 
 import (
-	"fmt"
-
 	"github.com/bdragon300/terminusgo/woql/bare"
 	"github.com/bdragon300/terminusgo/woql/schema"
 )
@@ -38,7 +36,6 @@ type numOrVarWrapper struct {
 type QueryBuilder struct {
 	Bare       *bare.QueryBuilder
 	vocabulary map[string]string
-	// TODO: errors member (multierror package)
 }
 
 func (b *QueryBuilder) WithVocabulary(vocab map[string]string) *QueryBuilder {
@@ -72,7 +69,7 @@ func (b *QueryBuilder) Select(vars ...Variable) *QueryBuilder {
 		if name, err := extractVariableName(v); err == nil {
 			params = append(params, name)
 		} else {
-			panic(fmt.Sprintf("Value %q is not a variable", v)) // TODO: keep error instead of panic
+			panic(err)
 		}
 	}
 	return b.clone(b.Bare.Select(params))
@@ -92,7 +89,7 @@ func (b *QueryBuilder) Distinct(vars ...Variable) *QueryBuilder {
 		if name, err := extractVariableName(v); err == nil {
 			params = append(params, name)
 		} else {
-			panic(fmt.Sprintf("Value %q is not a variable", v)) // TODO: keep error instead of panic
+			panic(err)
 		}
 	}
 	return b.clone(b.Bare.Distinct(params))
@@ -111,7 +108,7 @@ func (b *QueryBuilder) OrderBy(vars map[Variable]schema.OrderDirection) *QueryBu
 				Variable: name,
 			})
 		} else {
-			panic(fmt.Sprintf("Value %q is not a variable", v)) // TODO: keep error instead of panic
+			panic(err)
 		}
 	}
 	return b.clone(b.Bare.OrderBy(ordering))
@@ -122,7 +119,7 @@ func (b *QueryBuilder) GroupBy(groupVars []Variable, templateVars []Variable, ou
 	for _, v := range groupVars {
 		varName, err := extractVariableName(v)
 		if err != nil {
-			panic(fmt.Sprintf("Value %q is not a variable", v))
+			panic(err)
 		}
 		grpVars = append(grpVars, varName)
 	}
@@ -585,9 +582,9 @@ func (b *QueryBuilder) True() *QueryBuilder {
 }
 
 func (b *QueryBuilder) Path(subj StringOrVariable, pattern string, obj StringOrVariable, resultVar Variable) *QueryBuilder {
-	parsedPattern, err := parseTriplePattern(pattern)
+	parsedPattern, err := parseTriplePattern(pattern) // TODO: add Validate method
 	if err != nil {
-		panic(fmt.Sprintf("Error while parsing pattern %q: %s", pattern, err)) // TODO: return error instead of panic
+		panic(err)
 	}
 	var resVar *schema.Value
 	if resultVar != "" {

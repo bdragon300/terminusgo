@@ -52,7 +52,7 @@ type anyConvertable interface {
 	FromAnyValue(value any)
 }
 
-func parseVariable[ValueT variableConvertable](expr any, buf ValueT, preferLiteral bool) ValueT { // TODO: remove onlyVariable
+func parseVariable[ValueT variableConvertable](expr any, buf ValueT, preferLiteral bool) ValueT {
 	// TODO: refactor, move common parts to a separate function
 	switch v := expr.(type) {
 	case string, Variable, StringOrVariable:
@@ -71,7 +71,7 @@ func parseVariable[ValueT variableConvertable](expr any, buf ValueT, preferLiter
 		switch v2 := v.v.(type) {
 		case string:
 			if varName, err := extractVariableName(v2); err != nil {
-				panic(fmt.Sprintf("String %q is not a variable expression", expr)) // FIXME: return error instead of panic
+				panic(err)
 			} else {
 				buf.FromVariableName(varName)
 			}
@@ -82,14 +82,14 @@ func parseVariable[ValueT variableConvertable](expr any, buf ValueT, preferLiter
 				panic(fmt.Sprintf("Type %T is not convertable from integer", buf))
 			}
 		default:
-			panic(fmt.Sprintf("%v is not an integer or variable", expr)) // FIXME: return error instead of panic
+			panic(fmt.Sprintf("%v is not an integer or variable", expr))
 		}
 
 	case numOrVarWrapper:
 		switch v2 := v.v.(type) {
 		case string:
 			if varName, err := extractVariableName(v2); err != nil {
-				panic(fmt.Sprintf("String %q is not a variable expression", expr)) // FIXME: return error instead of panic
+				panic(err)
 			} else {
 				buf.FromVariableName(varName)
 			}
@@ -100,7 +100,7 @@ func parseVariable[ValueT variableConvertable](expr any, buf ValueT, preferLiter
 				panic(fmt.Sprintf("Type %T is not convertable from number", buf))
 			}
 		default:
-			panic(fmt.Sprintf("%v is not a number or variable", expr)) // FIXME: return error instead of panic
+			panic(fmt.Sprintf("%v is not a number or variable", expr))
 		}
 
 	default:
