@@ -3,8 +3,6 @@ package schema
 import "github.com/bdragon300/terminusgo/schema"
 
 // TODO: check if all schema structs are actually used
-
-// TODO: add json marshaler/unmarshaler which is not require json tags everywhere (and applies `omitempty` everywhere)
 // TODO: check schema against json_woql.pl
 
 type NamedQuery struct {
@@ -12,18 +10,10 @@ type NamedQuery struct {
 	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
 }
 
-func (n NamedQuery) GetSubQuery() Querier {
-	return n.SubQuery
-}
-
 type NamedParametricQuery struct {
 	Name       string
 	Parameters []string
 	SubQuery   Querier `json:"query" terminusgo:"type=Class,class=Query,name=query"`
-}
-
-func (n NamedParametricQuery) GetSubQuery() Querier {
-	return n.SubQuery
 }
 
 type Querier interface {
@@ -41,10 +31,6 @@ func (q Query) GetQueryData() any {
 
 func (q Query) QueryType() {}
 
-type SubQuerier interface { // FIXME: seems that not needed
-	GetSubQuery() Querier
-}
-
 type Path struct {
 	Query
 	Subject Value
@@ -59,28 +45,16 @@ type Using struct {
 	Collection string
 }
 
-func (n Using) GetSubQuery() Querier {
-	return n.SubQuery
-}
-
 type Select struct {
 	Query
 	SubQuery  Querier `json:"query" terminusgo:"type=Class,class=Query,name=query"`
 	Variables []string
 }
 
-func (n Select) GetSubQuery() Querier {
-	return n.SubQuery
-}
-
 type Distinct struct {
 	Query
 	SubQuery  Querier `terminusgo:"type=Class,class=Query,name=query"`
 	Variables []string
-}
-
-func (n Distinct) GetSubQuery() Querier {
-	return n.SubQuery
 }
 
 type And struct {
@@ -99,18 +73,10 @@ type From struct {
 	Graph    string
 }
 
-func (n From) GetSubQuery() Querier {
-	return n.SubQuery
-}
-
 type Into struct {
 	Query
 	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
 	Graph    string
-}
-
-func (n Into) GetSubQuery() Querier {
-	return n.SubQuery
 }
 
 type Triple struct {
@@ -328,18 +294,11 @@ type If struct {
 	Else Querier `terminusgo:"type=Class,class=Query"`
 }
 
-// TODO: implement somehow
-// func (n If) GetSubQuery() Querier {
-//	return n.SubQuery
-//}
-
 type When struct {
 	Query
 	SubQuery   Querier `terminusgo:"type=Class,class=Query,name=query"`
 	Consequent Querier `terminusgo:"type=Class,class=Query"`
 }
-
-// TODO: implement SubQuerier
 
 type Trim struct {
 	Query
@@ -375,10 +334,6 @@ type Greater struct {
 type Optional struct {
 	Query
 	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
-}
-
-func (n Optional) GetSubQuery() Querier {
-	return n.SubQuery
 }
 
 type LexicalKey struct {
@@ -459,18 +414,10 @@ type Start struct {
 	Start    uint
 }
 
-func (n Start) GetSubQuery() Querier {
-	return n.SubQuery
-}
-
 type Limit struct {
 	Query
 	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
 	Limit    uint
-}
-
-func (n Limit) GetSubQuery() Querier {
-	return n.SubQuery
 }
 
 type Regexp struct {
@@ -490,20 +437,12 @@ type OrderBy struct {
 	Ordering []OrderTemplate
 }
 
-func (n OrderBy) GetSubQuery() Querier {
-	return n.SubQuery
-}
-
 type GroupBy struct {
 	Query
 	Template Value
 	GroupBy  []string
 	SubQuery Querier `json:"query" terminusgo:"type=Class,class=Query,name=query"`
 	Grouped  Value
-}
-
-func (n GroupBy) GetSubQuery() Querier {
-	return n.SubQuery
 }
 
 type Length struct {
@@ -517,17 +456,9 @@ type Not struct {
 	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
 }
 
-func (n Not) GetSubQuery() Querier {
-	return n.SubQuery
-}
-
 type Once struct {
 	Query
 	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
-}
-
-func (n Once) GetSubQuery() Querier {
-	return n.SubQuery
 }
 
 type Immediately struct {
@@ -535,18 +466,10 @@ type Immediately struct {
 	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
 }
 
-func (n Immediately) GetSubQuery() Querier {
-	return n.SubQuery
-}
-
 type Count struct {
 	Query
 	SubQuery Querier `terminusgo:"type=Class,class=Query,name=query"`
 	Count    DataValue
-}
-
-func (n Count) GetSubQuery() Querier {
-	return n.SubQuery
 }
 
 type Typecast struct {
