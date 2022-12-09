@@ -7,9 +7,9 @@ import (
 	"reflect"
 )
 
-type RawConverter interface {
-	FromRaw(RawSchemaItem) error
-	ToRaw(RawSchemaItem) error // FIXME: maybe make parameter as pointer?
+type Serializable interface {
+	Deserialize(RawSchemaItem) error
+	Serialize(RawSchemaItem) error // FIXME: maybe make parameter as pointer?
 }
 
 type ItemType string
@@ -24,8 +24,8 @@ const (
 
 type RawSchemaItem map[string]any
 
-func (rsi RawSchemaItem) ToSchemaItem(schemaItemBuf RawConverter) error {
-	return schemaItemBuf.FromRaw(rsi)
+func (rsi RawSchemaItem) ToSchemaItem(schemaItemBuf Serializable) error {
+	return schemaItemBuf.Deserialize(rsi)
 }
 
 func (rsi RawSchemaItem) Type() (ItemType, error) {
@@ -40,15 +40,15 @@ func (rsi RawSchemaItem) Type() (ItemType, error) {
 
 type Schema struct {
 	Context     Context
-	SchemaItems []RawConverter
+	SchemaItems []Serializable
 }
 
-func (s *Schema) FromRawSchema(items []RawSchemaItem) error {
+func (s *Schema) Deserialize(items []RawSchemaItem) error {
 	if len(items) == 0 {
 		return errors.New("empty schema")
 	}
 	for _, item := range items {
-		schemaItem, err := produceSchemaItem(item)
+		schemaItem, err := deserializeSchemaItem(item)
 		if err != nil {
 			return fmt.Errorf("unable to convert raw schema to schema item object: %w", err)
 		}
@@ -57,16 +57,16 @@ func (s *Schema) FromRawSchema(items []RawSchemaItem) error {
 	return nil
 }
 
-func (s *Schema) ToRawSchema(buf []RawSchemaItem) error {
+func (s *Schema) Serialize(buf []RawSchemaItem) error {
 	buf2 := make(RawSchemaItem)
-	if err := s.Context.ToRaw(buf2); err != nil {
+	if err := s.Context.Serialize(buf2); err != nil {
 		return fmt.Errorf("unable to convert context object to raw schema: %w", err)
 	}
 	buf = append(buf[:0], buf2)
 
 	for ind, v := range s.SchemaItems {
 		buf2 = make(RawSchemaItem)
-		if err := v.ToRaw(buf2); err != nil {
+		if err := v.Serialize(buf2); err != nil {
 			return fmt.Errorf("unable to convert schema item object to raw schema at index %d: %w", ind, err)
 		}
 		buf = append(buf, buf2)
@@ -116,7 +116,7 @@ func (s *Schema) Validate() error {
 
 func (s *Schema) MarshalJSON() ([]byte, error) {
 	buf := make([]RawSchemaItem, 0, len(s.SchemaItems)+1)
-	if err := s.ToRawSchema(buf); err != nil {
+	if err := s.Serialize(buf); err != nil {
 		return nil, err
 	}
 	return json.Marshal(buf)
@@ -127,7 +127,7 @@ func (s *Schema) UnmarshalJSON(bytes []byte) error {
 	if err := json.Unmarshal(bytes, &buf); err != nil {
 		return err
 	}
-	return s.FromRawSchema(buf)
+	return s.Deserialize(buf)
 }
 
 func hasType(item RawSchemaItem, typ ItemType) bool {
@@ -140,11 +140,11 @@ func hasType(item RawSchemaItem, typ ItemType) bool {
 	return false
 }
 
-func produceSchemaItem(m RawSchemaItem) (RawConverter, error) {
-	var res RawConverter
-	factories := map[ItemType]func() RawConverter{
-		ClassSchemaItem: func() RawConverter { return &Class{} },
-		EnumSchemaItem:  func() RawConverter { return &Enum{} },
+func deserializeSchemaItem(m RawSchemaItem) (Serializable, error) {
+	var res Serializable
+	factories := map[ItemType]func() Serializable{
+		ClassSchemaItem: func() Serializable { return &Class{} },
+		EnumSchemaItem:  func() Serializable { return &Enum{} },
 	}
 	if hasType(m, ContextSchemaItem) {
 		res = &Context{}
@@ -159,6 +159,6 @@ func produceSchemaItem(m RawSchemaItem) (RawConverter, error) {
 		}
 		res = factory()
 	}
-	err := res.FromRaw(m)
+	err := res.Deserialize(m)
 	return res, err
 }

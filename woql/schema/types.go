@@ -198,14 +198,14 @@ type OrderTemplate struct {
 }
 
 type Literal struct {
-	schema.RawModel
+	Type  string `terminusgo:"name=@type"`
 	Value any
 }
 
 func (s *Literal) FromAnyValue(value any) {
 	typ := reflect.ValueOf(value).Type()
 	if cls, ok := schema.GetSchemaClass(typ); ok {
-		s.RawModel = schema.RawModel{Type: cls}
+		s.Type = cls
 		s.Value = value
 		if conv, ok := schema.GetConverter(typ); ok {
 			s.Value = conv(s.Value)

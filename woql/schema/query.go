@@ -222,7 +222,7 @@ type QueryResource struct {
 	*schema.SubDocumentModel
 	Source  Source
 	Format  FormatType
-	Options FileOptions `terminusgo:"class=xdd:json,optional,untyped_object"`
+	Options FileOptions `terminusgo:"class=xdd:json,optional,notypeobj"`
 }
 
 type Get struct {
@@ -316,18 +316,18 @@ type Like struct {
 	Query
 	Left       DataValue
 	Right      DataValue
-	Similarity DataValue // FIXME: figure out why it's of type Value in python client
+	Similarity DataValue
 }
 
 type Less struct {
 	Query
-	Left  DataValue // FIXME: figure out why these fields have Value type in python client
+	Left  DataValue
 	Right DataValue
 }
 
 type Greater struct {
 	Query
-	Left  DataValue // FIXME: figure out why these fields have Value type in python client
+	Left  DataValue
 	Right DataValue
 }
 

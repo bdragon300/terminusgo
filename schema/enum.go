@@ -25,7 +25,7 @@ func (e *Enum) Name() string {
 	return e.ID
 }
 
-func (e *Enum) FromRaw(m RawSchemaItem) error {
+func (e *Enum) Deserialize(m RawSchemaItem) error {
 	if !hasType(m, EnumSchemaItem) {
 		return errors.New("raw schema has not enum type")
 	}
@@ -35,7 +35,7 @@ func (e *Enum) FromRaw(m RawSchemaItem) error {
 	return nil
 }
 
-func (e *Enum) ToRaw(buf RawSchemaItem) error {
+func (e *Enum) Serialize(buf RawSchemaItem) error {
 	if err := mapstructure.Decode(e, &buf); err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func (e *Enum) ToRaw(buf RawSchemaItem) error {
 
 func (e *Enum) MarshalJSON() ([]byte, error) {
 	buf := make(RawSchemaItem, 2)
-	if err := e.ToRaw(buf); err != nil {
+	if err := e.Serialize(buf); err != nil {
 		return nil, err
 	}
 	return json.Marshal(buf)
@@ -56,5 +56,5 @@ func (e *Enum) UnmarshalJSON(bytes []byte) error {
 	if err := json.Unmarshal(bytes, &buf); err != nil {
 		return err
 	}
-	return e.FromRaw(buf)
+	return e.Deserialize(buf)
 }

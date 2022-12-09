@@ -38,102 +38,10 @@ type Class struct {
 type (
 	AbstractModel    struct{} // TODO: implement
 	SubDocumentModel struct{}
-	RawModel         struct {
-		Type string `mapstructure:"@type" terminusgo:"name=@type"` // TODO: implement
-	}
 	// TODO: implement Documentation
 )
 
-type FieldSerializeMapCallback func(field reflect.StructField, name string, typeName string, value any) any
-
-func SerializeObject(buf map[string]any, object any, mapCallback FieldSerializeMapCallback) error {
-	val := reflect.Indirect(reflect.ValueOf(object))
-	if !val.IsValid() {
-		return errors.New("object is nil")
-	}
-	typeName := val.Type().Name()
-	return serializeObject(buf, val, typeName, mapCallback)
-}
-
-func serializeObject(buf map[string]any, object reflect.Value, typeName string, mapCallback FieldSerializeMapCallback) error {
-	objectTyp := object.Type()
-
-	for i := 0; i < object.NumField(); i++ {
-		fld := objectTyp.Field(i)
-		fldVal := object.Field(i)
-		fldName := fld.Name
-		fldTypeName := typeName // `object`'s "@type" value
-		untyped := false
-		if !fld.IsExported() {
-			continue
-		}
-
-		// Extract a value from interface
-		if fldVal.Kind() == reflect.Interface {
-			fldVal = fldVal.Elem()
-			if !fldVal.IsValid() {
-				continue // Interface is contained nil
-			}
-		}
-		fldVal = reflect.Indirect(fldVal)
-		if !fldVal.IsValid() {
-			continue // Skip nil pointers
-		}
-		fldRealVal := fldVal.Interface()
-
-		if !fld.Anonymous {
-			if n, s, ok := getFieldSchema(fld); ok {
-				fldName = n
-				fldTypeName = s.Class
-				if _, ok2 := s.Tags["untyped_object"]; ok2 {
-					untyped = true
-				}
-			} else {
-				continue
-			}
-			if mapCallback != nil {
-				fldRealVal = mapCallback(fld, fldName, fldTypeName, fldRealVal)
-				fldVal = reflect.ValueOf(fldRealVal)
-			}
-		}
-
-		switch fldVal.Kind() {
-		case reflect.Struct:
-			m := make(map[string]any)
-			err := serializeObject(m, fldVal, fldTypeName, mapCallback)
-			if err != nil {
-				return err
-			}
-			if untyped || fld.Anonymous {
-				delete(m, "@type")
-			}
-			if fld.Anonymous { // Extend res map
-				for k, v := range m {
-					buf[k] = v
-				}
-			} else { // Set res in a field
-				buf[fldName] = m
-			}
-		case reflect.Map:
-			m := make(map[string]any)
-			iter := fldVal.MapRange()
-			for iter.Next() {
-				m[iter.Key().String()] = iter.Value()
-			}
-			buf[fldName] = m
-		default:
-			buf[fldName] = fldRealVal
-		}
-	}
-	// Set @type only if no such field in struct
-	if _, ok := buf["@type"]; !ok {
-		buf["@type"] = typeName
-	}
-
-	return nil
-}
-
-func (c *Class) FromValue(obj any) {
+func (c *Class) FromObject(obj any) {
 	mdlVal := reflect.ValueOf(obj).Elem()
 	if !mdlVal.IsValid() {
 		panic("obj is nil")
@@ -184,7 +92,7 @@ func (c *Class) Validate() error {
 	return nil
 }
 
-func (c *Class) FromRaw(m RawSchemaItem) error {
+func (c *Class) Deserialize(m RawSchemaItem) error {
 	if !hasType(m, ClassSchemaItem) {
 		return errors.New("raw schema has not class type")
 	}
@@ -227,7 +135,7 @@ func (c *Class) FromRaw(m RawSchemaItem) error {
 	return nil
 }
 
-func (c *Class) ToRaw(buf RawSchemaItem) error {
+func (c *Class) Serialize(buf RawSchemaItem) error {
 	if err := mapstructure.Decode(c, &buf); err != nil {
 		return err
 	}
@@ -255,7 +163,7 @@ func (c *Class) ToRaw(buf RawSchemaItem) error {
 
 func (c *Class) MarshalJSON() ([]byte, error) {
 	buf := make(RawSchemaItem, 7+len(c.Fields))
-	if err := c.ToRaw(buf); err != nil {
+	if err := c.Serialize(buf); err != nil {
 		return nil, err
 	}
 	return json.Marshal(buf)
@@ -266,7 +174,7 @@ func (c *Class) UnmarshalJSON(bytes []byte) error {
 	if err := json.Unmarshal(bytes, &buf); err != nil {
 		return err
 	}
-	return c.FromRaw(buf)
+	return c.Deserialize(buf)
 }
 
 type ClassDocumentationType struct {
