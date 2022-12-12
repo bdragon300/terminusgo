@@ -10,6 +10,7 @@ import (
 type Enum struct {
 	ID    string   `mapstructure:"@id"`
 	Value []string `mapstructure:"@value" validate:"required"`
+	// TODO: implement documentation
 }
 
 func (e *Enum) FromValue(name string, enumValues []string) {
@@ -27,7 +28,7 @@ func (e *Enum) Name() string {
 
 func (e *Enum) Deserialize(m RawSchemaItem) error {
 	if !hasType(m, EnumSchemaItem) {
-		return errors.New("raw schema has not enum type")
+		return errors.New("item is not a Elass")
 	}
 	if err := mapstructure.Decode(m, e); err != nil {
 		return err

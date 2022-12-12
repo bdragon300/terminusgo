@@ -43,7 +43,7 @@ func serializeObject(buf map[string]any, object reflect.Value, typeName string, 
 		fldRealVal := fldVal.Interface()
 
 		if !fld.Anonymous {
-			if n, s, ok := getFieldSchema(fld); ok {
+			if n, s, ok := getStructFieldSchema(fld); ok {
 				fldName = n
 				fldTypeName = s.Class
 				if s.Type == FieldTypeOptional && fldVal.IsZero() { // Acts like "omitempty" check

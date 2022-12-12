@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mitchellh/mapstructure"
+
 	"github.com/gobeam/stringy"
 )
 
@@ -69,7 +71,7 @@ func analyzeModel(mdlTyp reflect.Type) (parents []reflect.Type, grandparents []r
 			}
 			continue
 		}
-		if name, s, ok := getFieldSchema(fld); ok {
+		if name, s, ok := getStructFieldSchema(fld); ok {
 			fields[name] = s
 		}
 	}
@@ -85,7 +87,20 @@ func typeExcluded(typ reflect.Type) bool {
 	return false
 }
 
-func getFieldSchema(field reflect.StructField) (string, Field, bool) {
+func isParent(typ reflect.Type, parents, grandparents []reflect.Type) bool {
+	found := false
+	for _, t := range parents {
+		found = found || t == typ
+	}
+	if !found {
+		for _, t := range grandparents {
+			found = found || t == typ
+		}
+	}
+	return found
+}
+
+func getStructFieldSchema(field reflect.StructField) (string, Field, bool) {
 	// TODO: cache
 	fldTyp := field.Type
 	fldName := stringy.New(field.Name).SnakeCase().ToLower()
@@ -187,4 +202,75 @@ func applyTags(schema *Field, tags map[string]string) {
 	if val, ok := tags["class"]; ok {
 		schema.Class = val
 	}
+}
+
+func parseRawFieldSchema(key string, value any) (map[string]Field, error) {
+	res := make(map[string]Field, 0)
+	items := make([]map[string]any, 0)
+
+	switch {
+	case key == "@oneOf":
+		fval := reflect.ValueOf(value).Elem()
+		switch fval.Kind() {
+		case reflect.Array, reflect.Slice:
+			if err := mapstructure.Decode(value, &items); err != nil {
+				return res, err
+			}
+		case reflect.Map:
+			item := make(map[string]any)
+			if err := mapstructure.Decode(value, &item); err != nil {
+				return res, err
+			}
+			items = append(items, item)
+		default:
+			return res, fmt.Errorf("unable to parse field %v", value)
+		}
+	case strings.HasPrefix(key, "@"):
+		return nil, nil
+	default:
+		items = append(items, map[string]any{key: value})
+	}
+
+	for _, v := range items {
+		for fkey, fval := range v {
+			if _, ok := res[fkey]; ok {
+				return res, fmt.Errorf("field %s is duplicated", fkey)
+			}
+			switch vt := fval.(type) {
+			case string:
+				res[fkey] = Field{Class: vt}
+			default:
+				fschema := Field{}
+				if err := mapstructure.Decode(vt, &fschema); err != nil {
+					return res, err
+				}
+				res[fkey] = fschema
+			}
+		}
+	}
+
+	return res, nil
+}
+
+func groupStructFields(fields map[string]Field) (structFields map[string]any, oneOfFields map[string][]any) {
+	structFields = make(map[string]any)
+	oneOfFields = make(map[string][]any)
+
+	for name, field := range fields {
+		var schema any = field
+		if field.Type == "" {
+			schema = field.Class
+		}
+
+		if group, ok := field.Tags["one_of"]; ok {
+			var m []any
+			if _, ok2 := oneOfFields[group]; ok2 {
+				m = oneOfFields[group]
+			}
+			oneOfFields[group] = append(m, schema)
+		} else {
+			structFields[name] = schema
+		}
+	}
+	return
 }

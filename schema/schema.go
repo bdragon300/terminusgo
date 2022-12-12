@@ -12,32 +12,6 @@ type Serializable interface {
 	Serialize(RawSchemaItem) error // FIXME: maybe make parameter as pointer?
 }
 
-type ItemType string
-
-const (
-	ClassSchemaItem       ItemType = "Class"
-	EnumSchemaItem        ItemType = "Enum"
-	TaggedUnionSchemaItem ItemType = "TaggedUnion" // TODO: implement (+ @oneOf)
-	UnitSchemaItem        ItemType = "Unit"        // TODO: implement
-	ContextSchemaItem     ItemType = "context"     // Ad-hoc type, not used in real schema
-)
-
-type RawSchemaItem map[string]any
-
-func (rsi RawSchemaItem) ToSchemaItem(schemaItemBuf Serializable) error {
-	return schemaItemBuf.Deserialize(rsi)
-}
-
-func (rsi RawSchemaItem) Type() (ItemType, error) {
-	variants := [5]ItemType{ContextSchemaItem, ClassSchemaItem, EnumSchemaItem, TaggedUnionSchemaItem, UnitSchemaItem}
-	for _, t := range variants {
-		if hasType(rsi, t) {
-			return t, nil
-		}
-	}
-	return "", errors.New("cannot determine schema item type")
-}
-
 type Schema struct {
 	Context     Context
 	SchemaItems []Serializable
@@ -74,11 +48,6 @@ func (s *Schema) Serialize(buf []RawSchemaItem) error {
 	return nil
 }
 
-type IdentityKeeper interface {
-	Type() ItemType
-	Name() string
-}
-
 func (s *Schema) FindModel(model any) int {
 	modelValue := reflect.Indirect(reflect.ValueOf(model))
 	targetID := modelValue.Type().Name()
@@ -87,6 +56,11 @@ func (s *Schema) FindModel(model any) int {
 
 func (s *Schema) FindEnum(name string) int {
 	return s.findNameType(name, EnumSchemaItem)
+}
+
+type IdentityKeeper interface {
+	Type() ItemType
+	Name() string
 }
 
 func (s *Schema) findNameType(name string, typ ItemType) int {
@@ -128,37 +102,4 @@ func (s *Schema) UnmarshalJSON(bytes []byte) error {
 		return err
 	}
 	return s.Deserialize(buf)
-}
-
-func hasType(item RawSchemaItem, typ ItemType) bool {
-	if val, ok := item["@type"]; ok {
-		return val.(string) == string(typ)
-	}
-	if _, ok := item["@schema"]; ok {
-		return typ == ContextSchemaItem
-	}
-	return false
-}
-
-func deserializeSchemaItem(m RawSchemaItem) (Serializable, error) {
-	var res Serializable
-	factories := map[ItemType]func() Serializable{
-		ClassSchemaItem: func() Serializable { return &Class{} },
-		EnumSchemaItem:  func() Serializable { return &Enum{} },
-	}
-	if hasType(m, ContextSchemaItem) {
-		res = &Context{}
-	} else {
-		typ, ok := m["@type"]
-		if !ok {
-			return nil, fmt.Errorf("empty @type field in schema item")
-		}
-		factory, ok := factories[ItemType(typ.(string))]
-		if !ok {
-			return nil, fmt.Errorf("unknown @type field value %v", typ.(string))
-		}
-		res = factory()
-	}
-	err := res.Deserialize(m)
-	return res, err
 }

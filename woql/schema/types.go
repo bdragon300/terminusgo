@@ -19,7 +19,7 @@ type FieldValuePair struct {
 }
 
 type Value struct {
-	// TODO: type is TaggedUnion
+	*schema.TaggedUnionModel
 	*schema.SubDocumentModel
 	Dictionary DictionaryTemplate // TODO: field does not used anywhere
 	List       []Value
@@ -47,7 +47,7 @@ func (v *Value) FromAnyValue(value any) {
 }
 
 type NodeValue struct {
-	// TODO: type is TaggedUnion
+	*schema.TaggedUnionModel
 	*schema.SubDocumentModel
 	Node     string
 	Variable string
@@ -62,7 +62,7 @@ func (v *NodeValue) FromString(value string, _ bool) {
 }
 
 type DataValue struct {
-	// TODO: type is TaggedUnion
+	*schema.TaggedUnionModel
 	*schema.SubDocumentModel
 	List     []DataValue
 	Data     any `terminusgo:"class=xsd:anySimpleType"`
@@ -90,7 +90,7 @@ func (v *DataValue) FromAnyValue(value any) {
 }
 
 type Indicator struct {
-	// TODO: type is TaggedUnion
+	*schema.TaggedUnionModel
 	*schema.SubDocumentModel
 	Name  string
 	Index uint
@@ -104,7 +104,7 @@ type Column struct {
 }
 
 type Source struct {
-	// TODO: type is TaggedUnion
+	*schema.TaggedUnionModel
 	*schema.SubDocumentModel
 	Post string
 	URL  string

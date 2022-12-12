@@ -16,7 +16,7 @@ type ArithmeticExpression struct {
 func (a ArithmeticExpression) Arithmetic() {}
 
 type ArithmeticValue struct {
-	// TODO: type is TaggedUnion
+	*schema.TaggedUnionModel
 	*schema.SubDocumentModel
 	ArithmeticExpression
 	Data     any `terminusgo:"class=xsd:anySimpleType"`

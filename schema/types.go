@@ -27,6 +27,7 @@ var primitiveTypeClasses = map[reflect.Kind]string{
 	// TODO: sys.Unit ?
 	// TODO: xdd:json ?
 	// TODO: any as xsd:anySimpleType?
+	// TODO: figure out all predefined types: xdd, sys, xsd, etc.
 }
 
 type ComplexTypeConverterFunc func(any) any

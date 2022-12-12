@@ -218,7 +218,7 @@ type DeleteObject struct {
 }
 
 type QueryResource struct {
-	// TODO: type is TaggedUnion
+	*schema.TaggedUnionModel
 	*schema.SubDocumentModel
 	Source  Source
 	Format  FormatType

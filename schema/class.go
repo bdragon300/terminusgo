@@ -33,6 +33,7 @@ type Class struct {
 	Fields        map[string]Field         `mapstructure:"-"`
 	SubDocument   bool                     `mapstructure:"-"`
 	Abstract      bool                     `mapstructure:"-"`
+	// TODO: implement @metadata
 }
 
 type (
@@ -48,7 +49,7 @@ func (c *Class) FromObject(obj any) {
 	}
 	mdlType := mdlVal.Type()
 	if mdlType.Kind() != reflect.Struct {
-		panic("obj must be a struct")
+		panic("obj must be a struct object")
 	}
 	ps, gps, fields := analyzeModel(mdlType)
 
@@ -94,7 +95,7 @@ func (c *Class) Validate() error {
 
 func (c *Class) Deserialize(m RawSchemaItem) error {
 	if !hasType(m, ClassSchemaItem) {
-		return errors.New("raw schema has not class type")
+		return errors.New("item is not a Class")
 	}
 	if err := mapstructure.Decode(m, c); err != nil {
 		return err
@@ -151,18 +152,20 @@ func (c *Class) Serialize(buf RawSchemaItem) error {
 	if c.Abstract {
 		buf["@abstract"] = &[]any{}
 	}
-	for k, v := range c.Fields {
-		if v.Type == "" {
-			buf[k] = v.Class
-		} else {
-			buf[k] = v
-		}
+
+	structFields, oneOfFields := groupStructFields(c.Fields)
+	if len(oneOfFields) > 0 {
+		buf["@oneOf"] = oneOfFields
 	}
+	for k, v := range structFields {
+		buf[k] = v
+	}
+
 	return nil
 }
 
 func (c *Class) MarshalJSON() ([]byte, error) {
-	buf := make(RawSchemaItem, 7+len(c.Fields))
+	buf := make(RawSchemaItem)
 	if err := c.Serialize(buf); err != nil {
 		return nil, err
 	}
@@ -177,15 +180,3 @@ func (c *Class) UnmarshalJSON(bytes []byte) error {
 	return c.Deserialize(buf)
 }
 
-type ClassDocumentationType struct {
-	Language   string                                      `json:"@language,omitempty"`
-	Label      string                                      `json:"@label"`
-	Comment    string                                      `json:"@comment"`
-	Properties map[string]ClassDocumentationPropertiesItem `json:"@properties,omitempty" validate:"required_without=Values"`
-	Values     map[string]string                           `json:"@values,omitempty" validate:"required_without=Properties"`
-}
-
-type ClassDocumentationPropertiesItem struct {
-	Label   string `json:"@label"`
-	Comment string `json:"@comment"`
-}
