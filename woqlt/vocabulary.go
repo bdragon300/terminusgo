@@ -1,4 +1,4 @@
-package textquery
+package woqlt
 
 import (
 	"reflect"

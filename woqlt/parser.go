@@ -1,4 +1,4 @@
-package textquery
+package woqlt
 
 import (
 	"fmt"
@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
-	"github.com/bdragon300/terminusgo/textquery/grammar"
 	"github.com/bdragon300/terminusgo/woql"
+	"github.com/bdragon300/terminusgo/woqlt/grammar"
 )
 
 type (
