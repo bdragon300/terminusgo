@@ -76,13 +76,14 @@ func (sl *SyntaxListener) ExitParam(ctx *grammar.ParamContext) {
 	node := ctx.GetChild(0)
 	switch v := node.(type) {
 	case antlr.TerminalNode:
+		contents := v.GetText()
+
 		switch v.GetSymbol().GetTokenType() {
 		case grammar.WoqlParserSTRPARAM:
-			str, _ := renderString(v.GetText()) // FIXME: handle error
+			str, _ := renderString(contents) // FIXME: handle error
 			sl.pushParamTop(str)
 		case grammar.WoqlParserNUMPARAM:
-			txt := v.GetText()
-			parts := strings.Split(v.GetText(), ".")
+			parts := strings.Split(contents, ".")
 			prec := uint(0)
 			if len(parts) > 1 {
 				prec = 53 // IEEE_754 double type mantissa bits
@@ -90,7 +91,7 @@ func (sl *SyntaxListener) ExitParam(ctx *grammar.ParamContext) {
 			// FIXME: support other bases
 			// FIXME: dynamic precision
 			// FIXME: handle error
-			num, _, _ := big.ParseFloat(txt, 10, prec, big.ToNearestEven)
+			num, _, _ := big.ParseFloat(contents, 10, prec, big.ToNearestEven)
 			sl.pushParamTop(*num) // FIXME: handle nil pointer
 		}
 	case grammar.IFcallContext:

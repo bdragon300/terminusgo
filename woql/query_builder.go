@@ -114,7 +114,7 @@ func (b *QueryBuilder) OrderBy(vars map[Variable]schema.OrderDirection) *QueryBu
 	return b.clone(b.Bare.OrderBy(ordering))
 }
 
-func (b *QueryBuilder) GroupBy(groupVars []Variable, templateVars []Variable, outputVar Variable, subQuery schema.Querier) *QueryBuilder {
+func (b *QueryBuilder) GroupBy(groupVars, templateVars []Variable, outputVar Variable, subQuery schema.Querier) *QueryBuilder {
 	grpVars := make([]string, 0)
 	for _, v := range groupVars {
 		varName, err := extractVariableName(v)
@@ -503,7 +503,7 @@ func (b *QueryBuilder) Member(member, list AnyOrVariable) *QueryBuilder {
 	))
 }
 
-func (b *QueryBuilder) MemberOfList(member, list []AnyOrVariable) *QueryBuilder {
+func (b *QueryBuilder) MemberOfList(member AnyOrVariable, list []AnyOrVariable) *QueryBuilder {
 	var paramList []schema.DataValue
 	for _, v := range list {
 		paramList = append(paramList, *parseVariable(v, &schema.DataValue{}, false))
@@ -559,7 +559,7 @@ func (b *QueryBuilder) Immediately(subQuery schema.Querier) *QueryBuilder {
 }
 
 func (b *QueryBuilder) Count(countVar IntegerOrVariable, subQuery schema.Querier) *QueryBuilder {
-	return b.clone(b.Bare.Count(*parseVariable(countVar, &schema.DataValue{}, false), subQuery))
+	return b.clone(b.Bare.Count(*parseVariable(intOrVarWrapper{countVar}, &schema.DataValue{}, false), subQuery))
 }
 
 func (b *QueryBuilder) TypeCast(value AnyOrVariable, typ StringOrVariable, resultVar Variable) *QueryBuilder {
