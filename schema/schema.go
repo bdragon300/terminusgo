@@ -12,6 +12,8 @@ type Serializable interface {
 	Serialize(RawSchemaItem) error // FIXME: maybe make parameter as pointer?
 }
 
+// TODO: implement factory to generate objects based on schema dict
+
 type Schema struct {
 	Context     Context
 	SchemaItems []Serializable

@@ -32,10 +32,13 @@ type CommitPath struct {
 	Organization, Database, Repo, Branch, Commit string
 }
 
-func (cp CommitPath) GetPath(action string) string {
+func (cp CommitPath) GetURL(action string) string {
+	return fmt.Sprintf("%s/%s", action, cp.GetPath())
+}
+
+func (cp CommitPath) GetPath() string {
 	return fmt.Sprintf(
-		"%s/%s/%s/commit/%s",
-		action,
+		"%s/%s/commit/%s",
 		getDBBase(cp.Database, cp.Organization),
 		url.QueryEscape(cp.Repo),
 		cp.Commit,

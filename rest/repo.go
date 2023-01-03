@@ -4,67 +4,62 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-)
 
-type Repo struct {
-	// TODO: local and remote repos
-	Name string
-}
+	"github.com/bdragon300/terminusgo/srverror"
+)
 
 type RepoIntroducer BaseIntroducer
 
 func (ri *RepoIntroducer) OnDatabase(path DatabasePath) *RepoRequester {
-	return &RepoRequester{Client: ri.client, path: path}
+	return &RepoRequester{BaseRequester: BaseRequester{Client: ri.client, path: path}}
 }
 
-type RepoRequester BaseRequester
-
-type RepoFetchOptions struct {
-	RemoteURL           string `validate:"required,url" default:"http://example.com/user/test_db"` // FIXME: in python client it is called "remote id", check why
-	RemoteAuthorization string `validate:"required" default:"TOKEN"`                               // FIXME: in python client it does not exist
+type RepoRequester struct {
+	BaseRequester
+	remoteAuthorization string
 }
 
-// TODO: this relates either to repo or to branch, figure out
-func (rr *RepoRequester) Fetch(ctx context.Context, repoID string, options *RepoFetchOptions) (err error) {
-	if options, err = prepareOptions(options); err != nil {
-		return err
-	}
-	URL := rr.getURL(repoID, "fetch")
-	sl := rr.Client.C.Set("AUTHORIZATION_REMOTE", options.RemoteAuthorization).Post(URL)
-	if _, err = doRequest(ctx, sl, nil); err != nil { // FIXME: there is ok response
-		return err
-	}
-
-	return nil
+// Contents will be put to 'Authorization' header to a remote POST request, see src/core/api/db_fetch.pl:authorized_fetch() in TerminusDB sources
+func (rr *RepoRequester) WithRemoteAuth(contents string) *RepoRequester {
+	rr.remoteAuthorization = contents
+	return rr
 }
 
-func (rr *RepoRequester) Optimize(ctx context.Context, repoID string) error {
-	sl := rr.Client.C.Post(rr.getURL(repoID, "optimize"))
-	if _, err := doRequest(ctx, sl, nil); err != nil { // TODO: There is ok response also
-		return err
-	}
-
-	return nil
-}
-
-func (rr *RepoRequester) getURL(objectID, action string) string {
+func (rr *RepoRequester) Fetch(ctx context.Context, repoID string) (response TerminusResponse, err error) {
+	// Implementation in db: src/core/api/db_fetch.pl:remote_fetch(). Quite awkward IMHO
 	path := rr.path.(DatabasePath)
-	return RepoPath{
+	URL := BranchPath{
 		Organization: path.Organization,
 		Database:     path.Database,
-		Repo:         objectID,
-	}.GetPath(action)
+		Repo:         repoID,
+		Branch:       BranchCommits,
+	}.GetURL("fetch")
+	sl := rr.Client.C.Post(URL)
+	if rr.remoteAuthorization != "" {
+		sl = sl.Set(srverror.RemoteAuthorizationHeader, rr.remoteAuthorization)
+	}
+	return doRequest(ctx, sl, nil)
+}
+
+func (rr *RepoRequester) Optimize(ctx context.Context, repoID string) (response TerminusResponse, err error) {
+	path := rr.path.(DatabasePath)
+	URL := RepoPath{
+		Organization: path.Organization,
+		Database:     path.Database,
+		Repo:         repoID,
+	}.GetURL("optimize")
+	sl := rr.Client.C.Post(URL)
+	return doRequest(ctx, sl, nil)
 }
 
 type RepoPath struct {
 	Organization, Database, Repo string
 }
 
-func (rp RepoPath) GetPath(action string) string {
-	return fmt.Sprintf(
-		"%s/%s/%s",
-		action,
-		getDBBase(rp.Database, rp.Organization),
-		url.QueryEscape(rp.Repo),
-	)
+func (rp RepoPath) GetURL(action string) string {
+	return fmt.Sprintf("%s/%s", action, rp.GetPath())
+}
+
+func (rp RepoPath) GetPath() string {
+	return fmt.Sprintf("%s/%s", getDBBase(rp.Database, rp.Organization), url.QueryEscape(rp.Repo))
 }

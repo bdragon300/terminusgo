@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+
+	"github.com/bdragon300/terminusgo/srverror"
 )
 
 // TODO: document can be also a list, a schema for instance
@@ -21,73 +24,103 @@ const (
 type DocumentIntroducer[DocumentT any] BaseIntroducer
 
 func (di *DocumentIntroducer[DocumentT]) OnDatabase(path DatabasePath) *DocumentRequester[DocumentT] {
-	return &DocumentRequester[DocumentT]{Client: di.client, path: path}
+	return &DocumentRequester[DocumentT]{BaseRequester: BaseRequester{Client: di.client, path: path}}
 }
 
 func (di *DocumentIntroducer[DocumentT]) OnBranch(path BranchPath) *DocumentRequester[DocumentT] {
-	return &DocumentRequester[DocumentT]{Client: di.client, path: path}
+	return &DocumentRequester[DocumentT]{BaseRequester: BaseRequester{Client: di.client, path: path}}
 }
 
 func (di *DocumentIntroducer[DocumentT]) OnCommit(path CommitPath) *DocumentRequester[DocumentT] {
-	return &DocumentRequester[DocumentT]{Client: di.client, path: path}
+	return &DocumentRequester[DocumentT]{BaseRequester: BaseRequester{Client: di.client, path: path}}
 }
 
-type DocumentRequester[DocumentT any] BaseRequester
-
-type DocumentListOptions struct {
-	CompressIDs bool       `url:"compress_ids,omitempty"`
-	Type        string     `url:"type,omitempty"`
-	Unfold      bool       `url:"unfold,omitempty"`
-	Count       int        `url:"count,omitempty"`
-	Skip        int        `url:"skip" default:"0,omitempty"`
-	GraphType   GraphTypes `url:"graph_type" default:"instance"`
-	Prefixed    bool       `url:"prefixed" default:"true"` // FIXME: figure out for what this param is
+type DocumentRequester[DocumentT any] struct {
+	BaseRequester
+	dataVersion string
 }
 
-func (dr *DocumentRequester[DocumentT]) ListAll(ctx context.Context, buf *[]DocumentT, options *DocumentListOptions) (err error) {
+func (dr *DocumentRequester[DocumentT]) WithDataVersion(dataVersion string) *DocumentRequester[DocumentT] {
+	dr.dataVersion = dataVersion
+	return dr
+}
+
+type DocumentIsExistsOptions struct {
+	GraphType GraphTypes `url:"graph_type" default:"instance"`
+}
+
+func (dr *DocumentRequester[DocumentT]) IsExists(ctx context.Context, options *DocumentIsExistsOptions) (exists bool, response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
-	extraParams := struct {
-		AsList    bool `url:"as_list"`
-		Minimized bool `url:"minimized"` // Compress json on the server side
-	}{true, true}
-	sl := dr.Client.C.QueryStruct(options).QueryStruct(&extraParams).Get(dr.path.GetPath("document"))
-	if _, err = doRequest(ctx, sl, buf); err != nil {
-		return err
+	sl := dr.Client.C.QueryStruct(options).Head(dr.path.GetURL("document"))
+	if dr.dataVersion != "" {
+		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
 	}
-
+	response, err = doRequest(ctx, sl, nil)
+	if err != nil {
+		return
+	}
+	exists = response.IsOK()
 	return
 }
 
-func (dr *DocumentRequester[DocumentT]) ListAllIterator(ctx context.Context, items chan<- DocumentT, options *DocumentListOptions) error {
-	var err error
+type DocumentListOptions struct {
+	CompressIDs bool       `url:"compress_ids" default:"true"`
+	Type        string     `url:"type,omitempty"`
+	Unfold      bool       `url:"unfold" default:"true"`
+	Count       int        `url:"count,omitempty"`
+	Skip        int        `url:"skip" default:"0"`
+	GraphType   GraphTypes `url:"graph_type" default:"instance"`
+	Prefixed    bool       `url:"prefixed" default:"true"`
+}
+
+func (dr *DocumentRequester[DocumentT]) ListAll(ctx context.Context, buf *[]DocumentT, options *DocumentListOptions) (response TerminusResponse, err error) {
+	if options, err = prepareOptions(options); err != nil {
+		return
+	}
+	extraParams := struct {
+		DocumentListOptions
+		AsList    bool `url:"as_list"`   // Feed the response in JSON instead of Concatenated JSON
+		Minimized bool `url:"minimized"` // Compress json on the server side
+	}{*options, true, true}
+	sl := dr.Client.C.QueryStruct(extraParams).Get(dr.path.GetURL("document"))
+	if dr.dataVersion != "" {
+		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
+	}
+	return doRequest(ctx, sl, buf)
+}
+
+func (dr *DocumentRequester[DocumentT]) ListAllIterator(ctx context.Context, items chan<- DocumentT, options *DocumentListOptions) (response *http.Response, err error) {
 	if items == nil {
 		panic("items channel cannot be nil")
 	}
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
 	extraParams := struct {
-		AsList    bool `url:"as_list"`
+		AsList    bool `url:"as_list"`   // Feed the response in JSON instead of Concatenated JSON
 		Minimized bool `url:"minimized"` // Compress json on the server side
 	}{false, true}
-	sl := dr.Client.C.QueryStruct(options).QueryStruct(&extraParams).Get(dr.path.GetPath("document"))
+	sl := dr.Client.C.QueryStruct(options).QueryStruct(&extraParams).Get(dr.path.GetURL("document"))
+	if dr.dataVersion != "" {
+		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
+	}
 	req, err := sl.Request()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Making a request using implClient since sl drains and closes resp.Body after the request has been made
-	resp, err := dr.Client.implClient.Do(req.WithContext(ctx))
+	response, err = dr.Client.implClient.Do(req.WithContext(ctx))
 	if err != nil {
-		return err
+		return
 	}
 
 	go func() {
-		defer func() { _ = resp.Body.Close() }()
-		defer func() { _, _ = io.Copy(io.Discard, resp.Body) }()
+		defer func() { _ = response.Body.Close() }()
+		defer func() { _, _ = io.Copy(io.Discard, response.Body) }()
 		defer func() { _ = recover() }() // FIXME: write to log
-		decoder := json.NewDecoder(resp.Body)
+		decoder := json.NewDecoder(response.Body)
 		for {
 			var doc DocumentT
 			if err := decoder.Decode(&doc); err == io.EOF {
@@ -101,124 +134,114 @@ func (dr *DocumentRequester[DocumentT]) ListAllIterator(ctx context.Context, ite
 		}
 	}()
 
-	return nil
-}
-
-type DocumentGetOptions struct {
-	CompressIDs bool       `url:"compress_ids,omitempty"`
-	Type        string     `url:"type,omitempty"`
-	Unfold      bool       `url:"unfold,omitempty"`
-	GraphType   GraphTypes `url:"graph_type" default:"instance"`
-	Prefixed    bool       `url:"prefixed"`
-}
-
-func (dr *DocumentRequester[DocumentT]) Get(ctx context.Context, buf *DocumentT, docID string, options *DocumentGetOptions) (err error) {
-	if options, err = prepareOptions(options); err != nil {
-		return err
-	}
-	extraParams := struct {
-		Minimized bool   `url:"minimized"`
-		ID        string `url:"id"`
-	}{true, docID}
-	sl := dr.Client.C.QueryStruct(options).QueryStruct(&extraParams).Get(dr.path.GetPath("document"))
-	if _, err = doRequest(ctx, sl, buf); err != nil {
-		return err
-	}
-
 	return
 }
 
-type DocumentCreateOptions struct {
-	RawJSON         bool       `url:"raw_json"`
-	FullReplace     bool       `url:"full_replace"`
-	GraphType       GraphTypes `url:"graph_type" default:"instance"`
-	Message         string     `url:"message" default:"Default message"`
-	Author          string     `url:"author" default:"Default author"`
-	LastDataVersion string     // TODO: figure out with this
+type DocumentGetOptions struct {
+	CompressIDs bool       `url:"compress_ids" default:"true"`
+	Type        string     `url:"type,omitempty"`
+	Unfold      bool       `url:"unfold" default:"true"`
+	GraphType   GraphTypes `url:"graph_type" default:"instance"`
+	Prefixed    bool       `url:"prefixed" default:"true"`
 }
 
-func (dr *DocumentRequester[DocumentT]) Create(ctx context.Context, doc DocumentT, options *DocumentCreateOptions) error {
+func (dr *DocumentRequester[DocumentT]) Get(ctx context.Context, buf *DocumentT, docID string, options *DocumentGetOptions) (response TerminusResponse, err error) {
+	if options, err = prepareOptions(options); err != nil {
+		return
+	}
+	extraParams := struct {
+		DocumentGetOptions
+		AsList    bool   `url:"as_list"`
+		Minimized bool   `url:"minimized"`
+		ID        string `url:"id"`
+	}{*options, false, true, docID}
+	sl := dr.Client.C.QueryStruct(&extraParams).Get(dr.path.GetURL("document"))
+	if dr.dataVersion != "" {
+		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
+	}
+	return doRequest(ctx, sl, buf)
+}
+
+type DocumentCreateOptions struct {
+	GraphType   GraphTypes `url:"graph_type" default:"instance"`
+	Message     string     `url:"message" default:"Default message"`
+	Author      string     `url:"author" default:"Default author"`
+	RawJSON     bool       `url:"raw_json,omitempty"`
+	FullReplace bool       `url:"full_replace,omitempty"`
+}
+
+func (dr *DocumentRequester[DocumentT]) Create(ctx context.Context, doc DocumentT, options *DocumentCreateOptions) (response TerminusResponse, err error) {
 	var docSlice []DocumentT
 	docSlice = append(docSlice, doc)
-	if _, err := dr.CreateBulk(ctx, docSlice, options); err != nil {
-		return err
-	}
-	return nil
+	_, response, err = dr.CreateBulk(ctx, docSlice, options)
+	return
 }
 
-func (dr *DocumentRequester[DocumentT]) CreateBulk(ctx context.Context, docs []DocumentT, options *DocumentCreateOptions) (insertedIDs []string, err error) {
+func (dr *DocumentRequester[DocumentT]) CreateBulk(ctx context.Context, docs []DocumentT, options *DocumentCreateOptions) (insertedIDs []string, response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return nil, err
+		return
 	}
 	// TODO: maybe need to implement _convert_document function and use here
-	sl := dr.Client.C.QueryStruct(options).BodyJSON(docs).Post(dr.path.GetPath("document"))
-	// FIXME: check actual response (insertedIDs)
-	if _, err = doRequest(ctx, sl, &insertedIDs); err != nil {
-		return nil, err
+	sl := dr.Client.C.QueryStruct(options).BodyJSON(docs).Post(dr.path.GetURL("document"))
+	if dr.dataVersion != "" {
+		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
 	}
+	response, err = doRequest(ctx, sl, &insertedIDs)
 	return
 }
 
 type DocumentUpdateOptions struct {
-	RawJSON         bool       `url:"raw_json"`
-	Create          bool       `url:"create"`
-	GraphType       GraphTypes `url:"graph_type" default:"instance"` //  FIXME: check all params in options everywhere if they have to enums
-	Message         string     `url:"message" default:"Default message"`
-	Author          string     `url:"author" default:"Default author"`
-	LastDataVersion string
+	GraphType GraphTypes `url:"graph_type" default:"instance"` //  FIXME: check all params in options everywhere if they have to enums
+	Message   string     `url:"message" default:"Default message"`
+	Author    string     `url:"author" default:"Default author"`
+	RawJSON   bool       `url:"raw_json,omitempty"`
+	Create    bool       `url:"create,omitempty"`
 }
 
-func (dr *DocumentRequester[DocumentT]) UpdateBulk(ctx context.Context, docs []DocumentT, options *DocumentUpdateOptions) (updatedIDs []string, err error) {
+func (dr *DocumentRequester[DocumentT]) UpdateBulk(ctx context.Context, docs []DocumentT, options *DocumentUpdateOptions) (updatedIDs []string, response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return nil, err
+		return
 	}
 	// TODO: maybe need to implement _convert_document function and use here
-	sl := dr.Client.C.QueryStruct(options).BodyJSON(docs).Put(dr.path.GetPath("document"))
-	if options.LastDataVersion != "" {
-		sl.Set("TerminusDB-Data-Version", options.LastDataVersion)
+	sl := dr.Client.C.QueryStruct(options).BodyJSON(docs).Put(dr.path.GetURL("document"))
+	if dr.dataVersion != "" {
+		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
 	}
-	// FIXME: check actual response (updatedIDs)
-	if _, err = doRequest(ctx, sl, &updatedIDs); err != nil {
-		return nil, err
-	}
+	response, err = doRequest(ctx, sl, &updatedIDs)
 	return
 }
 
-func (dr *DocumentRequester[DocumentT]) Update(ctx context.Context, doc DocumentT, options *DocumentUpdateOptions) error {
+func (dr *DocumentRequester[DocumentT]) Update(ctx context.Context, doc DocumentT, options *DocumentUpdateOptions) (response TerminusResponse, err error) {
 	var docSlice []DocumentT
 	docSlice = append(docSlice, doc)
-	if _, err := dr.UpdateBulk(ctx, docSlice, options); err != nil {
-		return err
-	}
-	return nil
+	_, response, err = dr.UpdateBulk(ctx, docSlice, options)
+	return
 }
 
 type DocumentDeleteOptions struct {
-	LastDataVersion string
+	GraphType GraphTypes `url:"graph_type" default:"instance"` //  FIXME: check all params in options everywhere if they have to enums
+	Message   string     `url:"message" default:"Default message"`
+	Author    string     `url:"author" default:"Default author"`
+	Nuke      bool       `json:"nuke,omitempty"`
+	ID        string     `json:"id,omitempty"`
 }
 
-func (dr *DocumentRequester[DocumentT]) DeleteBulk(ctx context.Context, docIDs []string, options *DocumentDeleteOptions) (deletedIDs []string, err error) {
+func (dr *DocumentRequester[DocumentT]) DeleteBulk(ctx context.Context, docIDs []string, options *DocumentDeleteOptions) (deletedIDs []string, response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return nil, err
+		return
 	}
 	// TODO: maybe need to implement _convert_document function and use here
-	sl := dr.Client.C.QueryStruct(options).BodyJSON(docIDs).Delete(dr.path.GetPath("document"))
-	if options.LastDataVersion != "" {
-		sl.Set("TerminusDB-Data-Version", options.LastDataVersion)
+	sl := dr.Client.C.QueryStruct(options).BodyJSON(docIDs).Delete(dr.path.GetURL("document"))
+	if dr.dataVersion != "" {
+		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
 	}
-	// FIXME: check actual response (deletedIDs)
-	if _, err = doRequest(ctx, sl, &deletedIDs); err != nil {
-		return nil, err
-	}
-
-	return deletedIDs, nil
+	response, err = doRequest(ctx, sl, &deletedIDs)
+	return
 }
 
-func (dr *DocumentRequester[DocumentT]) Delete(ctx context.Context, docID string, options *DocumentDeleteOptions) error {
+func (dr *DocumentRequester[DocumentT]) Delete(ctx context.Context, docID string, options *DocumentDeleteOptions) (response TerminusResponse, err error) {
 	var docSlice []string
 	docSlice = append(docSlice, docID)
-	if _, err := dr.DeleteBulk(ctx, docSlice, options); err != nil {
-		return err
-	}
-	return nil
+	_, response, err = dr.DeleteBulk(ctx, docSlice, options)
+	return
 }

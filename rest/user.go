@@ -8,14 +8,12 @@ import (
 
 type UserCapability struct {
 	ID    string `json:"@id"`
-	Type  string `json:"type"`
 	Role  []Role `json:"role"`
 	Scope string `json:"scope"`
 }
 
 type User struct {
 	ID         string           `json:"@id"`
-	Type       string           `json:"type"` // FIXME: actually missing... check
 	Capability []UserCapability `json:"capability"`
 	Name       string           `json:"name"`
 }
@@ -26,103 +24,105 @@ func (ui *UserIntroducer) OnOrganization(path OrganizationPath) *UserRequester {
 	return &UserRequester{Client: ui.client, path: path}
 }
 
-// TODO: test on localhost
 func (ui *UserIntroducer) OnServer() *UserRequester {
 	return &UserRequester{Client: ui.client, path: nil}
 }
 
 type UserRequester BaseRequester
 
-// TODO: test on localhost
-func (ur *UserRequester) ListAll(ctx context.Context, buf *[]User) error {
-	sl := ur.Client.C.Get(ur.getURL("")) // FIXME: hack, make smth like getListUrl
-	_, err := doRequest(ctx, sl, buf)
-	return err
+type UserListAllOptions struct {
+	Capability bool `json:"capability" default:"false"`
 }
 
-// TODO: test on localhost
-func (ur *UserRequester) Get(ctx context.Context, buf *User, name string) error {
-	sl := ur.Client.C.Get(ur.getURL(name))
-	_, err := doRequest(ctx, sl, buf)
-	return err
-}
-
-type UserCreateOptions struct {
-	Password string `json:"password" validate:"required"`
-}
-
-// TODO: test on localhost
-func (ur *UserRequester) Create(ctx context.Context, name string, options *UserCreateOptions) (err error) {
+func (ur *UserRequester) ListAll(ctx context.Context, buf *[]User, options *UserListAllOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
-	body := struct {
-		UserCreateOptions
-		Name string `json:"name"`
-	}{*options, name}
-	sl := ur.Client.C.BodyJSON(body).Post("users")
-	if _, err = doRequest(ctx, sl, nil); err != nil { // TODO: there is ok response
-		return err
-	}
-	return
+	sl := ur.Client.C.QueryStruct(options).Get(ur.getURL(""))
+	return doRequest(ctx, sl, buf)
 }
 
-// TODO: test on localhost
-func (ur *UserRequester) UpdatePassword(ctx context.Context, name, password string) error {
+type UserGetOptions struct {
+	Capability bool `json:"capability" default:"false"`
+}
+
+func (ur *UserRequester) Get(ctx context.Context, buf *User, name string, options *UserListAllOptions) (response TerminusResponse, err error) {
+	if options, err = prepareOptions(options); err != nil {
+		return
+	}
+	sl := ur.Client.C.QueryStruct(options).Get(ur.getURL(name))
+	return doRequest(ctx, sl, buf)
+}
+
+func (ur *UserRequester) Create(ctx context.Context, name, password string) (response TerminusResponse, err error) {
+	body := struct {
+		Name     string `json:"name"`
+		Password string `json:"password,omitempty"`
+	}{name, password}
+	sl := ur.Client.C.BodyJSON(body).Post("users")
+	return doRequest(ctx, sl, nil)
+}
+
+func (ur *UserRequester) UpdatePassword(ctx context.Context, name, password string) (response TerminusResponse, err error) {
 	body := struct {
 		Name     string `json:"name"`
 		Password string `json:"password"`
 	}{name, password}
 	sl := ur.Client.C.BodyJSON(body).Put("users")
-	if _, err := doRequest(ctx, sl, nil); err != nil { // TODO: there is ok response
-		return err
-	}
-
-	return nil
+	return doRequest(ctx, sl, nil)
 }
 
 type UserUpdateCapabilitiesOptions struct {
-	Operation string   `json:"operation" default:"revoke"` // FIXME: make enum; ensure that revoke is ok as a default value
-	Scope     string   `json:"scope"`                      // FIXME: figure out a default value for scope
-	Roles     []string `json:"roles"`                      // FIXME: make Roles type
+	Scope     string   `json:"scope"`
+	ScopeType string   `json:"scope_type,omitempty" default:"database"` // Only one possible value: "database" or empty
+	Roles     []string `json:"roles"`                                   // Role IDs
 }
 
-// TODO: test on localhost
-func (ur *UserRequester) UpdateCapabilities(ctx context.Context, name string, options *UserUpdateCapabilitiesOptions) (err error) {
+type UserCapabilitiesOperation string
+
+const (
+	UserGrantCapabilities  UserCapabilitiesOperation = "grant"
+	UserRevokeCapabilities UserCapabilitiesOperation = "revoke"
+)
+
+func (ur *UserRequester) UpdateCapabilities(ctx context.Context, name string, operation UserCapabilitiesOperation, options *UserUpdateCapabilitiesOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
 	body := struct {
 		UserUpdateCapabilitiesOptions
-		User string `json:"user"`
-	}{*options, name}
+		User      string `json:"user"`
+		Operation string `json:"operation"`
+	}{*options, name, string(operation)}
 	sl := ur.Client.C.BodyJSON(body).Post("capabilities")
-	if _, err = doRequest(ctx, sl, nil); err != nil { // TODO: there is ok response
-		return err
-	}
-
-	return
+	return doRequest(ctx, sl, nil)
 }
 
 func (ur *UserRequester) getURL(objectID string) string {
 	org := ""
+	action := "users"
 	if ur.path != nil {
 		path := ur.path.(OrganizationPath)
 		org = path.Organization
+		action = "organizations"
 	}
 	return UserPath{
 		Organization: org,
 		User:         objectID,
-	}.GetPath("organizations")
+	}.GetURL(action)
 }
 
 type UserPath struct {
 	Organization, User string
 }
 
-func (up UserPath) GetPath(action string) string {
+func (up UserPath) GetURL(action string) string {
+	return fmt.Sprintf("%s/%s", action, up.GetPath())
+}
+
+func (up UserPath) GetPath() string {
 	if up.Organization == "" {
-		return fmt.Sprintf("%s/%s", action, url.QueryEscape(up.User))
+		return url.QueryEscape(up.User)
 	}
-	return fmt.Sprintf("%s/%s/users/%s", action, url.QueryEscape(up.Organization), url.QueryEscape(up.User))
+	return fmt.Sprintf("%s/users/%s", url.QueryEscape(up.Organization), url.QueryEscape(up.User))
 }

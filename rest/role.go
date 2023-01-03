@@ -8,75 +8,57 @@ import (
 
 type Role struct {
 	ID     string   `json:"@id"`
-	Type   string   `json:"type"`
 	Action []string `json:"action"`
 	Name   string   `json:"name"`
 }
 
 type RoleRequester BaseRequester
 
-func (rr *RoleRequester) ListAll(ctx context.Context, buf *[]Role) error {
+func (rr *RoleRequester) ListAll(ctx context.Context, buf *[]Role) (response TerminusResponse, err error) {
 	sl := rr.Client.C.Get("roles")
-	if _, err := doRequest(ctx, sl, buf); err != nil {
-		return err
-	}
-	return nil
+	return doRequest(ctx, sl, buf)
 }
 
-func (rr *RoleRequester) Get(ctx context.Context, buf *Role, name string) error {
+func (rr *RoleRequester) Get(ctx context.Context, buf *Role, name string) (response TerminusResponse, err error) {
 	sl := rr.Client.C.Get(rr.getURL(name))
-	if _, err := doRequest(ctx, sl, buf); err != nil {
-		return err
-	}
-	return nil
+	return doRequest(ctx, sl, buf)
 }
 
 type RoleCreateOptions struct {
 	Action []string `json:"action"`
 }
 
-func (rr *RoleRequester) Create(ctx context.Context, name string, options *RoleCreateOptions) (err error) {
+func (rr *RoleRequester) Create(ctx context.Context, name string, options *RoleCreateOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
 	body := struct {
 		RoleCreateOptions
 		Name string `json:"name"`
 	}{*options, name}
 	sl := rr.Client.C.BodyJSON(body).Post("roles")
-	if _, err = doRequest(ctx, sl, nil); err != nil { // TODO: there is ok response
-		return err
-	}
-
-	return nil
+	return doRequest(ctx, sl, nil)
 }
 
 type RoleUpdateOptions struct {
 	Action []string `json:"action"`
 }
 
-func (rr *RoleRequester) Update(ctx context.Context, name string, options *RoleUpdateOptions) (err error) {
+func (rr *RoleRequester) Update(ctx context.Context, name string, options *RoleUpdateOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
 	body := struct {
 		RoleUpdateOptions
 		Name string `json:"name"`
 	}{*options, name}
 	sl := rr.Client.C.BodyJSON(body).Put("roles")
-	if _, err = doRequest(ctx, sl, nil); err != nil { // TODO: there is ok response
-		return err
-	}
-
-	return
+	return doRequest(ctx, sl, nil)
 }
 
-func (rr *RoleRequester) Delete(ctx context.Context, name string) error {
+func (rr *RoleRequester) Delete(ctx context.Context, name string) (response TerminusResponse, err error) {
 	sl := rr.Client.C.Delete(rr.getURL(name))
-	if _, err := doRequest(ctx, sl, nil); err != nil {
-		return err
-	}
-	return nil
+	return doRequest(ctx, sl, nil)
 }
 
 func (rr *RoleRequester) getURL(objectID string) string {

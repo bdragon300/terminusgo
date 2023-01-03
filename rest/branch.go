@@ -25,103 +25,110 @@ func (bi *BranchIntroducer) OnRepo(path RepoPath) *BranchRequester {
 
 type BranchRequester BaseRequester
 
-type BranchListOptions struct {
-	LastDataVersion string // TODO: figure out with this
-}
-
-func (br *BranchRequester) ListAll(ctx context.Context, buf *[]Branch, _ *BranchListOptions) error {
+func (br *BranchRequester) ListAll(ctx context.Context, buf *[]Branch) (response TerminusResponse, err error) {
 	di := DocumentIntroducer[Branch]{client: br.Client}
 	path := br.path.(RepoPath)
-	err := di.OnBranch(BranchPath{
+	return di.OnBranch(BranchPath{
 		Organization: path.Organization,
 		Database:     path.Database,
 		Repo:         path.Repo,
 		Branch:       BranchCommits,
 	}).ListAll(ctx, buf, &DocumentListOptions{Type: "Branch", GraphType: GraphTypeInstance, Prefixed: true})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 type BranchCreateOptions struct {
-	Origin string `json:"origin,omitempty"`
+	// Origin is the thing we wish to create a branch out of. it can be any kind of branch descriptor or commit descriptor.
+	Origin   string  `json:"origin,omitempty"`
+	Schema   bool    `json:"schema,omitempty"`
+	Prefixes *Prefix `json:"prefixes,omitempty"`
 }
 
-func (br *BranchRequester) Create(ctx context.Context, branchID string, options *BranchCreateOptions) (err error) {
+func (br *BranchRequester) Create(ctx context.Context, branchID string, options *BranchCreateOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
 	// TODO: maybe need to implement _convert_document function and use here
 	sl := br.Client.C.BodyJSON(options).Post(br.getURL(branchID, "branch"))
-	_, err = doRequest(ctx, sl, nil)
-	return
+	return doRequest(ctx, sl, nil)
 }
 
-func (br *BranchRequester) Delete(ctx context.Context, branchID string) error {
+func (br *BranchRequester) Delete(ctx context.Context, branchID string) (response TerminusResponse, err error) {
 	sl := br.Client.C.Delete(br.getURL(branchID, "branch"))
-	_, err := doRequest(ctx, sl, nil)
-	return err
+	return doRequest(ctx, sl, nil)
 }
 
 type BranchPushOptions struct {
-	PushPrefixes bool   `json:"push_prefixes"` // FIXME: this is not in python client
-	Remote       string `json:"remote" validate:"required" default:"defaultRemote"`
-	RemoteBranch string `json:"remote_branch" validate:"required" default:"origin"` // FIXME: is such default ok?
-	Author       string `json:"author" default:"defaultAuthor"`                     // FIXME: figure out if this field is required and default author is ok
+	PushPrefixes bool   `json:"push_prefixes" default:"true"`
+	Author       string `json:"author" default:"defaultAuthor"` // FIXME: figure out if author, message are actually used in db (and required or not)
 	Message      string `json:"message" default:"Default commit message"`
 }
 
-func (br *BranchRequester) Push(ctx context.Context, branchID string, options *BranchPushOptions) (err error) {
+// error conditions:
+// - branch to push does not exist
+// - repository does not exist
+// - we tried to push to a repository that is not a remote
+// - tried to push without having fetched first. The repository exists as an entity in our metadata graph but it hasn't got an associated commit graph. We always need one.
+// - remote diverged - someone else committed and pushed and we know about that
+// - We try to push an empty branch, but we know that remote is non-empty
+// - remote returns an error
+// -- history diverged (we check locally, but there's a race)
+// -- remote doesn't know what we're talking about
+// -- remote authorization failed
+// - communication error while talking to the remote
+func (br *BranchRequester) Push(ctx context.Context, branchID, remote, remoteBranch string, options *BranchPushOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
-	sl := br.Client.C.BodyJSON(options).Post(br.getURL(branchID, "push"))
-	_, err = doRequest(ctx, sl, nil) // TODO: There is ok response also
-	return
+	body := struct {
+		BranchPushOptions
+		Remote       string `json:"remote"`
+		RemoteBranch string `json:"remote_branch"`
+	}{*options, remote, remoteBranch}
+	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "push"))
+	return doRequest(ctx, sl, nil)
 }
 
 type BranchPullOptions struct {
-	Remote       string `json:"remote" validate:"required" default:"defaultRemote"`
-	RemoteBranch string `json:"remote_branch" validate:"required" default:"origin"` // FIXME: is such default ok?
-	Author       string `json:"author" default:"defaultAuthor"`                     // FIXME: figure out if this field is required and default author is ok
-	Message      string `json:"message" default:"Default commit message"`           // FIXME: author/message passibly is CommitInfo or smth like this
+	Author  string `json:"author" default:"defaultAuthor"` // FIXME: figure out if author, message are actually used in db (and required or not)
+	Message string `json:"message" default:"Default commit message"`
 }
 
-func (br *BranchRequester) Pull(ctx context.Context, branchID string, options *BranchPullOptions) (err error) {
+func (br *BranchRequester) Pull(ctx context.Context, branchID, remote, remoteBranch string, options *BranchPullOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
-	sl := br.Client.C.BodyJSON(options).Post(br.getURL(branchID, "pull"))
-	_, err = doRequest(ctx, sl, nil) // TODO: There is ok response also
-	return
+	body := struct {
+		BranchPullOptions
+		Remote       string `json:"remote"`
+		RemoteBranch string `json:"remote_branch"`
+	}{*options, remote, remoteBranch}
+	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "pull"))
+	return doRequest(ctx, sl, nil) // TODO: There is ok response also
 }
 
 type BranchSquashOptions struct {
-	Author  string `json:"author" default:"defaultAuthor"`           // FIXME: figure out if this field is required and default author is ok
-	Message string `json:"message" default:"Default commit message"` // FIXME: author/message passibly is CommitInfo or smth like this
+	Author  string `json:"author" default:"defaultAuthor"` // FIXME: figure out if this field is required and default author is ok
+	Message string `json:"message" default:"Default commit message"`
 }
 
-func (br *BranchRequester) Squash(ctx context.Context, branchID string, options *BranchSquashOptions) (err error) {
+func (br *BranchRequester) Squash(ctx context.Context, branchID string, options *BranchSquashOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
 	body := struct {
 		CommitInfo any `json:"commit_info"`
 	}{*options}
 	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "squash"))
-	_, err = doRequest(ctx, sl, nil) // TODO: There is ok response also
-	return err
+	return doRequest(ctx, sl, nil)
 }
 
 type BranchResetOptions struct {
 	UsePath bool
 }
 
-func (br *BranchRequester) Reset(ctx context.Context, branchID, commit string, options *BranchResetOptions) (err error) {
+func (br *BranchRequester) Reset(ctx context.Context, branchID, commit string, options *BranchResetOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
 	if !options.UsePath {
 		path := br.path.(RepoPath)
@@ -131,28 +138,26 @@ func (br *BranchRequester) Reset(ctx context.Context, branchID, commit string, o
 			Repo:         path.Repo,
 			Branch:       branchID,
 			Commit:       commit,
-		}.GetPath("reset")
+		}.GetPath()
 	}
 	body := struct {
 		Commit string `json:"commit_descriptor"`
 	}{commit}
 	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "reset"))
-	_, err = doRequest(ctx, sl, nil) // TODO: There is ok response also
-	return
+	return doRequest(ctx, sl, nil)
 }
 
 type BranchApplyOptions struct {
-	BeforeCommit    string `json:"before_commit" validate:"required"`
-	AfterCommit     string `json:"after_commit" validate:"required"`
-	Message         string
-	Author          string
-	Keep            map[string]string `json:"keep"` // FIXME: figure out correct type
-	MatchFinalState bool              `json:"match_final_state"`
+	Message         string          `json:"-" default:"Default commit message"`
+	Author          string          `json:"-" default:"defaultAuthor"`
+	Keep            map[string]bool `json:"keep" default:"{\"@id\": true, \"@type\": true}"` // Fields to keep after apply
+	MatchFinalState bool            `json:"match_final_state" default:"true"`
+	Type            string          `json:"type,omitempty" default:"squash"`
 }
 
-func (br *BranchRequester) Apply(ctx context.Context, branchID string, options *BranchApplyOptions) (err error) {
+func (br *BranchRequester) Apply(ctx context.Context, branchID, beforeCommit, afterCommit string, options *BranchApplyOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
 	type commitInfo struct {
 		Author  string `json:"author"`
@@ -160,50 +165,61 @@ func (br *BranchRequester) Apply(ctx context.Context, branchID string, options *
 	}
 	body := struct {
 		BranchApplyOptions
-		CommitInfo commitInfo `json:"commit_info"`
-	}{*options, commitInfo{options.Author, options.Message}}
+		CommitInfo   commitInfo `json:"commit_info"`
+		BeforeCommit string     `json:"before_commit"`
+		AfterCommit  string     `json:"after_commit"`
+	}{*options, commitInfo{options.Author, options.Message}, beforeCommit, afterCommit}
 	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "apply"))
-	_, err = doRequest(ctx, sl, nil) // TODO: There is ok response also
-	return
+	return doRequest(ctx, sl, nil)
 }
 
 type BranchRebaseOptions struct {
-	RebaseSource string `json:"rebase_source"` // FIXME: can be commit id or branch id, consider to use several methods such as RebaseToCommit, RebaseToBranch
-	Author       string `json:"author" validate:"required" default:"Default author"`
-	Message      string `json:"message" validate:"required" default:"Default message"`
+	Author string `json:"author" default:"Default author"`
 }
 
-func (br *BranchRequester) Rebase(ctx context.Context, branchID string, options *BranchRebaseOptions) (err error) {
+func (br *BranchRequester) RebaseFromPath(ctx context.Context, branchID, rebaseFrom string, options *BranchRebaseOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
-	sl := br.Client.C.BodyJSON(options).Post(br.getURL(branchID, "rebase"))
-	_, err = doRequest(ctx, sl, nil) // TODO: There is ok response also
-	return
+	body := struct {
+		BranchRebaseOptions
+		RebaseFrom string `json:"rebase_from"`
+	}{*options, rebaseFrom}
+	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "rebase"))
+	return doRequest(ctx, sl, nil)
+}
+
+func (br *BranchRequester) Rebase(ctx context.Context, branchID string, rebaseFrom ObjectPathProvider, options *BranchRebaseOptions) (response TerminusResponse, err error) {
+	if rebaseFrom == nil {
+		panic("rebaseFrom is nil")
+	}
+	if options, err = prepareOptions(options); err != nil {
+		return
+	}
+	body := struct {
+		BranchRebaseOptions
+		RebaseFrom string `json:"rebase_from"`
+	}{*options, rebaseFrom.GetPath()}
+	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "rebase"))
+	return doRequest(ctx, sl, nil)
 }
 
 type BranchCommitLogOptions struct {
 	Count int `url:"count" default:"-1"`
-	Start int `url:"start,omitempty" default:"0"`
+	Start int `url:"start" default:"0"`
 }
 
-// FIXME: check if options are actually used everywhere
-func (br *BranchRequester) CommitLog(ctx context.Context, buf *[]Commit, branchID string, options *BranchCommitLogOptions) (err error) {
+func (br *BranchRequester) CommitLog(ctx context.Context, buf *[]Commit, branchID string, options *BranchCommitLogOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
-		return err
+		return
 	}
 	sl := br.Client.C.QueryStruct(options).Get(br.getURL(branchID, "log"))
-	_, err = doRequest(ctx, sl, buf)
-	return
+	return doRequest(ctx, sl, buf)
 }
 
-func (br *BranchRequester) Optimize(ctx context.Context, branchID string) error {
+func (br *BranchRequester) Optimize(ctx context.Context, branchID string) (response TerminusResponse, err error) {
 	sl := br.Client.C.Post(br.getURL(branchID, "optimize"))
-	if _, err := doRequest(ctx, sl, nil); err != nil { // TODO: There is ok response also
-		return err
-	}
-
-	return nil
+	return doRequest(ctx, sl, nil)
 }
 
 func (br *BranchRequester) getURL(branchID, action string) string {
@@ -213,17 +229,20 @@ func (br *BranchRequester) getURL(branchID, action string) string {
 		Database:     path.Database,
 		Repo:         path.Repo,
 		Branch:       branchID,
-	}.GetPath(action)
+	}.GetURL(action)
 }
 
 type BranchPath struct {
 	Organization, Database, Repo, Branch string
 }
 
-func (bp BranchPath) GetPath(action string) string {
+func (bp BranchPath) GetURL(action string) string {
+	return fmt.Sprintf("%s/%s", action, bp.GetPath())
+}
+
+func (bp BranchPath) GetPath() string {
 	suburl := fmt.Sprintf(
-		"%s/%s/%s",
-		action,
+		"%s/%s",
 		getDBBase(bp.Database, bp.Organization),
 		url.QueryEscape(bp.Repo),
 	)

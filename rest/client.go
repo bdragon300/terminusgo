@@ -2,7 +2,6 @@ package rest
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/dghubble/sling"
@@ -10,6 +9,7 @@ import (
 )
 
 // TODO: move from rest to another place
+// TODO: api_init.pl paths and filenames and headers
 type Client struct {
 	C          *sling.Sling
 	implClient *http.Client
@@ -30,7 +30,7 @@ func (c *Client) WithJWTAuth(jwtToken string) *Client {
 }
 
 func (c *Client) WithAPITokenAuth(token string) *Client {
-	c.C.Set("API_TOKEN", token)
+	c.C.Set("API_TOKEN", token) // TODO: check if it is actually used in db
 	return c
 }
 
@@ -70,12 +70,9 @@ func (c *Client) Roles() *RoleRequester {
 	return &RoleRequester{Client: c}
 }
 
-func (c *Client) Ping(ctx context.Context) error {
+func (c *Client) Ping(ctx context.Context) (response TerminusResponse, err error) {
 	sl := c.C.Get("ok")
-	if _, err := doRequest(ctx, sl, nil); err != nil {
-		return err
-	}
-	return nil
+	return doRequest(ctx, sl, nil)
 }
 
 type VersionInfo struct {
@@ -90,16 +87,15 @@ type TerminusVersionInfo struct {
 	TerminusDBStore VersionInfo `json:"terminusdb_store"`
 }
 
-func (c *Client) VersionInfo(ctx context.Context, buf *TerminusVersionInfo) error {
-	fmt.Println(buf == nil)
-	var response struct {
+func (c *Client) VersionInfo(ctx context.Context, buf *TerminusVersionInfo) (response TerminusResponse, err error) {
+	var respBuf struct {
 		Info *TerminusVersionInfo `json:"api:info"`
 	}
 	sl := c.C.Get("info")
-	if _, err := doRequest(ctx, sl, &response); err != nil {
-		return err
+	response, err = doRequest(ctx, sl, &respBuf)
+	if err != nil {
+		return
 	}
-	fmt.Printf("%+v", response)
-	*buf = *response.Info
-	return nil
+	*buf = *respBuf.Info
+	return
 }

@@ -123,20 +123,20 @@ type Request struct {
 func RequestDiff(ctx context.Context, client *rest.Client, buf *Diff, body Request) error {
 	// FIXME: figure out response schema
 	sl := client.C.BodyJSON(body).Post("diff") // FIXME: maybe this can be a branch path?
-	errTerminus := new(srverror.TerminusError)
+	errTerminus := new(srverror.TerminusErrorResponse)
 	req, err := sl.Request()
 	req = req.WithContext(ctx)
 	if err != nil {
 		return err
 	}
-	resp, err := sl.Do(req, buf, errTerminus)
+	_, err = sl.Do(req, buf, errTerminus)
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode > 300 {
-		errTerminus.HTTPCode = resp.StatusCode
-		return errTerminus
-	}
+	// if resp.StatusCode > 300 {
+	//	errTerminus.HTTPCode = resp.StatusCode
+	//	return errTerminus
+	//}
 
 	return nil
 }
@@ -147,19 +147,19 @@ func GetPatchedObject(ctx context.Context, client *rest.Client, buf any, before 
 		Patch  *Diff `json:"patch"`
 	}{before, diff} // FIXME: check if this is a Document actually
 	sl := client.C.BodyJSON(body).Post("patch") // FIXME: maybe this can be a branch path?
-	errTerminus := new(srverror.TerminusError)
+	errTerminus := new(srverror.TerminusErrorResponse)
 	req, err := sl.Request()
 	if err != nil {
 		return err
 	}
-	resp, err := sl.Do(req.WithContext(ctx), buf, errTerminus)
+	_, err = sl.Do(req.WithContext(ctx), buf, errTerminus)
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode > 300 {
-		errTerminus.HTTPCode = resp.StatusCode
-		return errTerminus
-	}
+	// if resp.StatusCode > 300 {
+	//	errTerminus.HTTPCode = resp.StatusCode
+	//	return errTerminus
+	//}
 
 	return nil
 }

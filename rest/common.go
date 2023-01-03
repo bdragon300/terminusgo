@@ -3,7 +3,6 @@ package rest
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
 
 	"github.com/bdragon300/terminusgo/srverror"
@@ -28,29 +27,39 @@ type BaseRequester struct {
 	path   ObjectPathProvider
 }
 
+type TerminusResponse interface {
+	IsOK() bool
+}
+
 type Validated interface {
 	Validate() error
 }
 
 type ObjectPathProvider interface {
-	GetPath(action string) string
+	GetURL(action string) string
+	GetPath() string
 }
 
-func doRequest(ctx context.Context, sling *sling.Sling, okResponse any) (*http.Response, error) {
+func doRequest(ctx context.Context, sling *sling.Sling, okResponse any) (TerminusResponse, error) {
 	req, err := sling.Request()
 	if err != nil {
 		return nil, err
 	}
-	errTerminus := new(srverror.TerminusError)
-	resp, err := sling.Do(req.WithContext(ctx), okResponse, errTerminus)
+	errResp := &srverror.TerminusErrorResponse{}
+	okResp := &srverror.TerminusOkResponse{}
+	if okResponse == nil {
+		okResponse = okResp
+	}
+	resp, err := sling.Do(req.WithContext(ctx), okResponse, errResp)
 	if err != nil {
 		return nil, err
 	}
 	if resp.StatusCode > 300 {
-		errTerminus.HTTPCode = resp.StatusCode
-		return resp, errTerminus
+		errResp.Response = resp
+		return errResp, nil
 	}
-	return resp, nil
+	okResp.Response = resp
+	return okResp, nil
 }
 
 func prepareOptions[T any](options *T) (*T, error) {
