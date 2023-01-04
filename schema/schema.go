@@ -24,7 +24,7 @@ func (s *Schema) Deserialize(items []RawSchemaItem) error {
 		return errors.New("empty schema")
 	}
 	for _, item := range items {
-		schemaItem, err := deserializeSchemaItem(item)
+		schemaItem, err := deserializeSchemaItem(item) // TODO: implement parsing schema frame (dict instead of list). See /schema endpoint response
 		if err != nil {
 			return fmt.Errorf("unable to convert raw schema to schema item object: %w", err)
 		}

@@ -40,14 +40,17 @@ type QueryBuilder struct {
 	cursor *AggWrapper
 }
 
-func (b *QueryBuilder) ToRaw(buf map[string]any) error {
+type RawQuery map[string]any
+
+func (b *QueryBuilder) ToRaw(buf *RawQuery) error {
 	var convertCb schema2.FieldSerializeMapCallback = func(_ reflect.StructField, _, _ string, value any) any {
 		if v, ok := value.(schema.Querier); ok {
 			return v.GetQueryData()
 		}
 		return value
 	}
-	return schema2.SerializeObject(buf, b.GetQueryData(), convertCb)
+	var rawBuf map[string]any = *buf
+	return schema2.SerializeObject(rawBuf, b.GetQueryData(), convertCb)
 }
 
 func (b *QueryBuilder) GetQueryData() any {

@@ -42,6 +42,7 @@ func hasType(item RawSchemaItem, typ ItemType) bool {
 }
 
 func deserializeSchemaItem(m RawSchemaItem) (Serializable, error) {
+	// TODO: implement inline @class definition, see `/schema` endpoint response
 	var res Serializable
 	factories := map[ItemType]func() Serializable{
 		ClassSchemaItem: func() Serializable { return &Class{} },

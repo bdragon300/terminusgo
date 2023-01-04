@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/bdragon300/terminusgo/schema"
+
 	"github.com/bdragon300/terminusgo/srverror"
 )
 
@@ -42,14 +44,52 @@ func (rr *RepoRequester) Fetch(ctx context.Context, repoID string) (response Ter
 }
 
 func (rr *RepoRequester) Optimize(ctx context.Context, repoID string) (response TerminusResponse, err error) {
+	sl := rr.Client.C.Post(rr.getURL(repoID, "optimize"))
+	return doRequest(ctx, sl, nil)
+}
+
+type RepoSchemaFrameOptions struct {
+	CompressIDs    bool `json:"compress_ids" default:"true"`
+	ExpandAbstract bool `json:"expand_abstract" default:"true"`
+}
+
+func (rr *RepoRequester) SchemaFrameAll(ctx context.Context, buf *[]schema.RawSchemaItem, name string, options *RepoSchemaFrameOptions) (response TerminusResponse, err error) {
+	var resp map[string]map[string]any
+	if options, err = prepareOptions(options); err != nil {
+		return
+	}
+	sl := rr.Client.C.QueryStruct(options).Get(rr.getURL(name, "schema"))
+	response, err = doRequest(ctx, sl, &resp)
+	if err != nil {
+		return
+	}
+
+	for k, v := range resp {
+		v["@id"] = k
+		*buf = append(*buf, v)
+	}
+	return
+}
+
+func (rr *RepoRequester) SchemaFrameType(ctx context.Context, buf *schema.RawSchemaItem, name, docType string, options *RepoSchemaFrameOptions) (response TerminusResponse, err error) {
+	if options, err = prepareOptions(options); err != nil {
+		return
+	}
+	params := struct {
+		RepoSchemaFrameOptions
+		Type string `json:"type"`
+	}{*options, docType}
+	sl := rr.Client.C.QueryStruct(params).Get(rr.getURL(name, "schema"))
+	return doRequest(ctx, sl, buf)
+}
+
+func (rr *RepoRequester) getURL(repoID, action string) string {
 	path := rr.path.(DatabasePath)
-	URL := RepoPath{
+	return RepoPath{
 		Organization: path.Organization,
 		Database:     path.Database,
 		Repo:         repoID,
-	}.GetURL("optimize")
-	sl := rr.Client.C.Post(URL)
-	return doRequest(ctx, sl, nil)
+	}.GetURL(action)
 }
 
 type RepoPath struct {

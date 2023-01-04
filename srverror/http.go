@@ -23,16 +23,16 @@ type TerminusErrorResponse struct {
 	Response *http.Response
 }
 
-func (te TerminusErrorResponse) String() string {
-	return fmt.Sprintf("terminus db server returned HTTP code %d: %s", te.Response.StatusCode, te.APIMessage)
+func (ter TerminusErrorResponse) String() string {
+	return fmt.Sprintf("terminus db server returned HTTP code %d: %s", ter.Response.StatusCode, ter.APIMessage)
 }
 
-func (te TerminusErrorResponse) IsOK() bool {
+func (ter TerminusErrorResponse) IsOK() bool {
 	return false
 }
 
-func (te TerminusErrorResponse) DataVersion() string {
-	return te.Response.Header.Get(DataVersionHeader)
+func (ter TerminusErrorResponse) DataVersion() string {
+	return ter.Response.Header.Get(DataVersionHeader)
 }
 
 type TerminusOkResponse struct {
@@ -55,10 +55,23 @@ type TerminusOkResponse struct {
 	Response *http.Response
 }
 
-func (or TerminusOkResponse) IsOK() bool {
+func (tor TerminusOkResponse) String() string {
+	return "successful request"
+}
+
+func (tor TerminusOkResponse) IsOK() bool {
 	return true
 }
 
-func (or TerminusOkResponse) String() string {
-	return "Successful request"
+func (tor TerminusOkResponse) DataVersion() string {
+	return tor.Response.Header.Get(DataVersionHeader)
+}
+
+type WOQLResponse struct {
+	APIStatus             string         `json:"api:status"`
+	APIVariableNames      string         `json:"api:variable_names"`
+	Bindings              map[string]any `json:"bindings"` // TODO: implement smth to extract/working with this field (and the one above)
+	Inserts               uint           `json:"inserts"`
+	Deletes               uint           `json:"deletes"`
+	TransactionRetryCount uint           `json:"transaction_retry_count"`
 }

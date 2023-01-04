@@ -43,7 +43,7 @@ func (b *QueryBuilder) WithVocabulary(vocab map[string]string) *QueryBuilder {
 	return b
 }
 
-func (b *QueryBuilder) ToRaw(buf map[string]any) error {
+func (b *QueryBuilder) ToRaw(buf *bare.RawQuery) error {
 	return b.Bare.ToRaw(buf)
 }
 

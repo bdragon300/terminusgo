@@ -4,6 +4,9 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/bdragon300/terminusgo/srverror"
+	"github.com/bdragon300/terminusgo/woql/bare"
+
 	"github.com/dghubble/sling"
 	"github.com/hashicorp/go-cleanhttp"
 )
@@ -98,4 +101,28 @@ func (c *Client) VersionInfo(ctx context.Context, buf *TerminusVersionInfo) (res
 	}
 	*buf = *respBuf.Info
 	return
+}
+
+type ClientWOQLOptions struct {
+	CommitAuthor  string
+	CommitMessage string
+	AllWitnesses  bool
+}
+
+// Query with empty context
+func (c *Client) WOQL(ctx context.Context, buf *srverror.WOQLResponse, query bare.RawQuery, options *ClientWOQLOptions) (response TerminusResponse, err error) {
+	if options, err = prepareOptions(options); err != nil {
+		return
+	}
+	type commitInfo struct {
+		Author  string `json:"author"`
+		Message string `json:"message"`
+	}
+	body := struct {
+		AllWitnesses bool          `json:"all_witnesses,omitempty"`
+		CommitInfo   commitInfo    `json:"commit_info"`
+		Query        bare.RawQuery `json:"query"`
+	}{options.AllWitnesses, commitInfo{options.CommitAuthor, options.CommitMessage}, query}
+	sl := c.C.BodyJSON(body).Post("woql")
+	return doRequest(ctx, sl, buf)
 }

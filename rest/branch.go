@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+
+	"github.com/bdragon300/terminusgo/schema"
 )
 
 type Branch struct {
@@ -220,6 +222,41 @@ func (br *BranchRequester) CommitLog(ctx context.Context, buf *[]Commit, branchI
 func (br *BranchRequester) Optimize(ctx context.Context, branchID string) (response TerminusResponse, err error) {
 	sl := br.Client.C.Post(br.getURL(branchID, "optimize"))
 	return doRequest(ctx, sl, nil)
+}
+
+type BranchSchemaFrameOptions struct {
+	CompressIDs    bool `json:"compress_ids" default:"true"`
+	ExpandAbstract bool `json:"expand_abstract" default:"true"`
+}
+
+func (br *BranchRequester) SchemaFrameAll(ctx context.Context, buf *[]schema.RawSchemaItem, name string, options *BranchSchemaFrameOptions) (response TerminusResponse, err error) {
+	var resp map[string]map[string]any
+	if options, err = prepareOptions(options); err != nil {
+		return
+	}
+	sl := br.Client.C.QueryStruct(options).Get(br.getURL(name, "schema"))
+	response, err = doRequest(ctx, sl, &resp)
+	if err != nil {
+		return
+	}
+
+	for k, v := range resp {
+		v["@id"] = k
+		*buf = append(*buf, v)
+	}
+	return
+}
+
+func (br *BranchRequester) SchemaFrameType(ctx context.Context, buf *schema.RawSchemaItem, name, docType string, options *BranchSchemaFrameOptions) (response TerminusResponse, err error) {
+	if options, err = prepareOptions(options); err != nil {
+		return
+	}
+	params := struct {
+		BranchSchemaFrameOptions
+		Type string `json:"type"`
+	}{*options, docType}
+	sl := br.Client.C.QueryStruct(params).Get(br.getURL(name, "schema"))
+	return doRequest(ctx, sl, buf)
 }
 
 func (br *BranchRequester) getURL(branchID, action string) string {

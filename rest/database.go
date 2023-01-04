@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"net/url"
 	"time"
+
+	"github.com/bdragon300/terminusgo/schema"
+	"github.com/bdragon300/terminusgo/srverror"
+	"github.com/bdragon300/terminusgo/woql/bare"
 )
 
 type Database struct {
@@ -38,7 +42,7 @@ type DatabaseInfo struct {
 type DatabaseIntroducer BaseIntroducer
 
 func (di *DatabaseIntroducer) OnOrganization(path OrganizationPath) *DatabaseRequester {
-	return &DatabaseRequester{Client: di.client, path: path}
+	return &DatabaseRequester{BaseRequester: BaseRequester{Client: di.client, path: path}}
 }
 
 func (di *DatabaseIntroducer) ListDatabaseInfo(ctx context.Context, buf *[]DatabaseInfo) (response TerminusResponse, err error) {
@@ -47,9 +51,16 @@ func (di *DatabaseIntroducer) ListDatabaseInfo(ctx context.Context, buf *[]Datab
 	return doRequest(ctx, sl, buf)
 }
 
-type DatabaseRequester BaseRequester
+type DatabaseRequester struct {
+	BaseRequester
+	dataVersion string
+}
 
-// FIXME: test on localhost
+func (dr *DatabaseRequester) WithDataVersion(dataVersion string) *DatabaseRequester {
+	dr.dataVersion = dataVersion
+	return dr
+}
+
 func (dr *DatabaseRequester) ListAll(ctx context.Context, buf *[]Database, userName string) (response TerminusResponse, err error) {
 	URL := "/" // Current user databases by default
 	if userName != "" {
@@ -62,10 +73,9 @@ func (dr *DatabaseRequester) ListAll(ctx context.Context, buf *[]Database, userN
 	return doRequest(ctx, sl, buf)
 }
 
-// FIXME: test additionally on localhost
 func (dr *DatabaseRequester) Get(ctx context.Context, buf *Database, name string) (response TerminusResponse, err error) {
 	options := map[string]any{"verbose": true, "branches": true}
-	sl := dr.Client.C.QueryStruct(options).Get(dr.getOrganizationDBURL(name, "db"))
+	sl := dr.Client.C.QueryStruct(options).Get(dr.getURL(name, "db"))
 	return doRequest(ctx, sl, buf)
 }
 
@@ -76,8 +86,7 @@ type DatabaseCreateOptions struct {
 	Prefixes *Prefix `json:"prefixes,omitempty"`
 }
 
-// FIXME: test on localhost
-func (dr *DatabaseRequester) Create(ctx context.Context, db Database, label string, options *DatabaseCreateOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Create(ctx context.Context, name, label string, options *DatabaseCreateOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -85,7 +94,7 @@ func (dr *DatabaseRequester) Create(ctx context.Context, db Database, label stri
 		DatabaseCreateOptions
 		Label string `json:"label"`
 	}{*options, label}
-	sl := dr.Client.C.BodyJSON(body).Post(dr.getOrganizationDBURL(db.Name, "db"))
+	sl := dr.Client.C.BodyJSON(body).Post(dr.getURL(name, "db"))
 	return doRequest(ctx, sl, nil)
 }
 
@@ -93,18 +102,16 @@ type DatabaseDeleteOptions struct {
 	Force bool `url:"force,omitempty"`
 }
 
-// FIXME: test on localhost
 func (dr *DatabaseRequester) Delete(ctx context.Context, name string, options *DatabaseDeleteOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
-	sl := dr.Client.C.QueryStruct(options).Delete(dr.getOrganizationDBURL(name, "db"))
+	sl := dr.Client.C.QueryStruct(options).Delete(dr.getURL(name, "db"))
 	return doRequest(ctx, sl, nil)
 }
 
-// FIXME: test on localhost
 func (dr *DatabaseRequester) IsExists(ctx context.Context, name string) (exists bool, response TerminusResponse, err error) {
-	sl := dr.Client.C.Head(dr.getOrganizationDBURL(name, "db"))
+	sl := dr.Client.C.Head(dr.getURL(name, "db"))
 	response, err = doRequest(ctx, sl, nil)
 	if err != nil {
 		return
@@ -121,13 +128,36 @@ type DatabaseUpdateOptions struct {
 	Prefixes *Prefix `json:"prefixes,omitempty"`
 }
 
-// FIXME: test on localhost
-func (dr *DatabaseRequester) Update(ctx context.Context, db Database, options *DatabaseUpdateOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Update(ctx context.Context, name string, options *DatabaseUpdateOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
-	sl := dr.Client.C.BodyJSON(options).Put(dr.getOrganizationDBURL(db.Name, "db"))
+	sl := dr.Client.C.BodyJSON(options).Put(dr.getURL(name, "db"))
 	return doRequest(ctx, sl, nil)
+}
+
+type DatabaseWOQLOptions struct {
+	CommitAuthor  string
+	CommitMessage string
+	AllWitnesses  bool
+}
+
+// Query with database context
+func (dr *DatabaseRequester) WOQL(ctx context.Context, buf *srverror.WOQLResponse, name string, query bare.RawQuery, options *DatabaseWOQLOptions) (response TerminusResponse, err error) {
+	if options, err = prepareOptions(options); err != nil {
+		return
+	}
+	type commitInfo struct {
+		Author  string `json:"author"`
+		Message string `json:"message"`
+	}
+	body := struct {
+		AllWitnesses bool          `json:"all_witnesses,omitempty"`
+		CommitInfo   commitInfo    `json:"commit_info"`
+		Query        bare.RawQuery `json:"query"`
+	}{options.AllWitnesses, commitInfo{options.CommitAuthor, options.CommitMessage}, query}
+	sl := dr.Client.C.BodyJSON(body).Post(dr.getURL(name, "woql"))
+	return doRequest(ctx, sl, buf)
 }
 
 type DatabaseCloneOptions struct {
@@ -136,7 +166,6 @@ type DatabaseCloneOptions struct {
 	Comment   string `json:"comment" default:"Default comment"`
 }
 
-// FIXME: test on localhost
 func (dr *DatabaseRequester) Clone(ctx context.Context, newName, newLabel string, options *DatabaseCloneOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
@@ -145,13 +174,13 @@ func (dr *DatabaseRequester) Clone(ctx context.Context, newName, newLabel string
 		DatabaseCloneOptions
 		Label string `json:"label"`
 	}{*options, newLabel}
-	sl := dr.Client.C.BodyJSON(body).Post(dr.getOrganizationDBURL(newName, "clone"))
+	sl := dr.Client.C.BodyJSON(body).Post(dr.getURL(newName, "clone"))
 	return doRequest(ctx, sl, nil)
 }
 
-// FIXME: additionally test on localhost, figure out what prefixes are
+// TODO: figure out what prefixes are
 func (dr *DatabaseRequester) Prefixes(ctx context.Context, buf *Prefix, dbName string) (response TerminusResponse, err error) {
-	sl := dr.Client.C.Get(dr.getOrganizationDBURL(dbName, "prefixes"))
+	sl := dr.Client.C.Get(dr.getURL(dbName, "prefixes"))
 	return doRequest(ctx, sl, buf)
 }
 
@@ -164,16 +193,51 @@ func (dr *DatabaseRequester) CommitLog(ctx context.Context, buf *[]Commit, name 
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
-	sl := dr.Client.C.QueryStruct(options).Get(dr.getOrganizationDBURL(name, "log"))
+	sl := dr.Client.C.QueryStruct(options).Get(dr.getURL(name, "log"))
 	return doRequest(ctx, sl, buf)
 }
 
 func (dr *DatabaseRequester) Optimize(ctx context.Context, dbName string) (response TerminusResponse, err error) {
-	sl := dr.Client.C.Post(dr.getOrganizationDBURL(dbName, "optimize"))
+	sl := dr.Client.C.Post(dr.getURL(dbName, "optimize"))
 	return doRequest(ctx, sl, nil)
 }
 
-func (dr *DatabaseRequester) getOrganizationDBURL(dbName, action string) string {
+type DatabaseSchemaFrameOptions struct {
+	CompressIDs    bool `json:"compress_ids" default:"true"`
+	ExpandAbstract bool `json:"expand_abstract" default:"true"`
+}
+
+func (dr *DatabaseRequester) SchemaFrameAll(ctx context.Context, buf *[]schema.RawSchemaItem, name string, options *DatabaseSchemaFrameOptions) (response TerminusResponse, err error) {
+	var resp map[string]map[string]any
+	if options, err = prepareOptions(options); err != nil {
+		return
+	}
+	sl := dr.Client.C.QueryStruct(options).Get(dr.getURL(name, "schema"))
+	response, err = doRequest(ctx, sl, &resp)
+	if err != nil {
+		return
+	}
+
+	for k, v := range resp {
+		v["@id"] = k
+		*buf = append(*buf, v)
+	}
+	return
+}
+
+func (dr *DatabaseRequester) SchemaFrameType(ctx context.Context, buf *schema.RawSchemaItem, name, docType string, options *DatabaseSchemaFrameOptions) (response TerminusResponse, err error) {
+	if options, err = prepareOptions(options); err != nil {
+		return
+	}
+	params := struct {
+		DatabaseSchemaFrameOptions
+		Type string `json:"type"`
+	}{*options, docType}
+	sl := dr.Client.C.QueryStruct(params).Get(dr.getURL(name, "schema"))
+	return doRequest(ctx, sl, buf)
+}
+
+func (dr *DatabaseRequester) getURL(dbName, action string) string {
 	return DatabasePath{
 		Organization: dr.path.(OrganizationPath).Organization,
 		Database:     dbName,
