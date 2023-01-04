@@ -1,8 +1,12 @@
 package rest
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -235,6 +239,52 @@ func (dr *DatabaseRequester) SchemaFrameType(ctx context.Context, buf *schema.Ra
 	}{*options, docType}
 	sl := dr.Client.C.QueryStruct(params).Get(dr.getURL(name, "schema"))
 	return doRequest(ctx, sl, buf)
+}
+
+type DatabasePackOptions struct {
+	RepositoryHead string `json:"repository_head,omitempty"`
+}
+
+func (dr *DatabaseRequester) Pack(ctx context.Context, buf io.Writer, name string, options *DatabasePackOptions) (writtenBytes int64, response TerminusResponse, err error) {
+	if options, err = prepareOptions(options); err != nil {
+		return
+	}
+	sl := dr.Client.C.BodyJSON(options).Post(dr.getURL(name, "pack"))
+
+	var httpReq *http.Request
+	if httpReq, err = sl.Request(); err != nil {
+		return
+	}
+	var httpResp *http.Response
+	if httpResp, err = dr.Client.implClient.Do(httpReq.WithContext(ctx)); err != nil {
+		return
+	}
+	defer httpResp.Body.Close()
+	if httpResp.StatusCode >= 300 {
+		response = &srverror.TerminusErrorResponse{}
+		err = json.NewDecoder(httpResp.Body).Decode(response)
+		return
+	}
+	response = &srverror.TerminusOkResponse{Response: httpResp}
+	writtenBytes, err = io.Copy(buf, httpResp.Body)
+	return
+}
+
+func (dr *DatabaseRequester) Unpack(ctx context.Context, data io.Reader, name string) (readBytes int64, response TerminusResponse, err error) {
+	buf := bytes.NewBuffer(nil)
+	if readBytes, err = buf.ReadFrom(data); err != nil {
+		return
+	}
+	sl := dr.Client.C.Body(buf).Post(dr.getURL(name, "unpack"))
+	response, err = doRequest(ctx, sl, nil)
+	return
+}
+
+func (dr *DatabaseRequester) UnpackResourceURI(ctx context.Context, name, resourceURI string) (readBytes int64, response TerminusResponse, err error) {
+	body := map[string]string{"resource_uri": resourceURI}
+	sl := dr.Client.C.BodyJSON(body).Post(dr.getURL(name, "unpack"))
+	response, err = doRequest(ctx, sl, nil)
+	return
 }
 
 func (dr *DatabaseRequester) getURL(dbName, action string) string {

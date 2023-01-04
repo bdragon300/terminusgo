@@ -111,8 +111,7 @@ func (dr *DocumentRequester[DocumentT]) ListAllIterator(ctx context.Context, ite
 		return nil, err
 	}
 	// Making a request using implClient since sl drains and closes resp.Body after the request has been made
-	response, err = dr.Client.implClient.Do(req.WithContext(ctx))
-	if err != nil {
+	if response, err = dr.Client.implClient.Do(req.WithContext(ctx)); err != nil {
 		return
 	}
 
