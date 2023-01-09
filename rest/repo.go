@@ -21,13 +21,19 @@ type RepoRequester struct {
 	remoteAuthorization string
 }
 
+func (rr *RepoRequester) WithContext(ctx context.Context) *RepoRequester {
+	r := *rr
+	r.ctx = ctx
+	return &r
+}
+
 // Contents will be put to 'Authorization' header to a remote POST request, see src/core/api/db_fetch.pl:authorized_fetch() in TerminusDB sources
 func (rr *RepoRequester) WithRemoteAuth(contents string) *RepoRequester {
 	rr.remoteAuthorization = contents
 	return rr
 }
 
-func (rr *RepoRequester) Fetch(ctx context.Context, repoID string) (response TerminusResponse, err error) {
+func (rr *RepoRequester) Fetch(repoID string) (response TerminusResponse, err error) {
 	// Implementation in db: src/core/api/db_fetch.pl:remote_fetch(). Quite awkward IMHO
 	path := rr.path.(DatabasePath)
 	URL := BranchPath{
@@ -40,12 +46,12 @@ func (rr *RepoRequester) Fetch(ctx context.Context, repoID string) (response Ter
 	if rr.remoteAuthorization != "" {
 		sl = sl.Set(srverror.RemoteAuthorizationHeader, rr.remoteAuthorization)
 	}
-	return doRequest(ctx, sl, nil)
+	return doRequest(rr.ctx, sl, nil)
 }
 
-func (rr *RepoRequester) Optimize(ctx context.Context, repoID string) (response TerminusResponse, err error) {
+func (rr *RepoRequester) Optimize(repoID string) (response TerminusResponse, err error) {
 	sl := rr.Client.C.Post(rr.getURL(repoID, "optimize"))
-	return doRequest(ctx, sl, nil)
+	return doRequest(rr.ctx, sl, nil)
 }
 
 type RepoSchemaFrameOptions struct {
@@ -53,13 +59,13 @@ type RepoSchemaFrameOptions struct {
 	ExpandAbstract bool `json:"expand_abstract" default:"true"`
 }
 
-func (rr *RepoRequester) SchemaFrameAll(ctx context.Context, buf *[]schema.RawSchemaItem, name string, options *RepoSchemaFrameOptions) (response TerminusResponse, err error) {
+func (rr *RepoRequester) SchemaFrameAll(buf *[]schema.RawSchemaItem, name string, options *RepoSchemaFrameOptions) (response TerminusResponse, err error) {
 	var resp map[string]map[string]any
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
 	sl := rr.Client.C.QueryStruct(options).Get(rr.getURL(name, "schema"))
-	response, err = doRequest(ctx, sl, &resp)
+	response, err = doRequest(rr.ctx, sl, &resp)
 	if err != nil {
 		return
 	}
@@ -71,7 +77,7 @@ func (rr *RepoRequester) SchemaFrameAll(ctx context.Context, buf *[]schema.RawSc
 	return
 }
 
-func (rr *RepoRequester) SchemaFrameType(ctx context.Context, buf *schema.RawSchemaItem, name, docType string, options *RepoSchemaFrameOptions) (response TerminusResponse, err error) {
+func (rr *RepoRequester) SchemaFrameType(buf *schema.RawSchemaItem, name, docType string, options *RepoSchemaFrameOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -80,7 +86,7 @@ func (rr *RepoRequester) SchemaFrameType(ctx context.Context, buf *schema.RawSch
 		Type string `json:"type"`
 	}{*options, docType}
 	sl := rr.Client.C.QueryStruct(params).Get(rr.getURL(name, "schema"))
-	return doRequest(ctx, sl, buf)
+	return doRequest(rr.ctx, sl, buf)
 }
 
 func (rr *RepoRequester) getURL(repoID, action string) string {

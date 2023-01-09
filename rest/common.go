@@ -25,6 +25,7 @@ type BaseIntroducer struct {
 type BaseRequester struct {
 	Client *Client
 	path   ObjectPathProvider
+	ctx    context.Context
 }
 
 type TerminusResponse interface {
@@ -50,7 +51,10 @@ func doRequest(ctx context.Context, sling *sling.Sling, okResponse any) (Terminu
 	if okResponse == nil {
 		okResponse = okResp
 	}
-	resp, err := sling.Do(req.WithContext(ctx), okResponse, errResp)
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+	resp, err := sling.Do(req, okResponse, errResp)
 	if err != nil {
 		return nil, err
 	}

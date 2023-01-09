@@ -14,21 +14,27 @@ type Role struct {
 
 type RoleRequester BaseRequester
 
-func (rr *RoleRequester) ListAll(ctx context.Context, buf *[]Role) (response TerminusResponse, err error) {
-	sl := rr.Client.C.Get("roles")
-	return doRequest(ctx, sl, buf)
+func (rr *RoleRequester) WithContext(ctx context.Context) *RoleRequester {
+	r := *rr
+	r.ctx = ctx
+	return &r
 }
 
-func (rr *RoleRequester) Get(ctx context.Context, buf *Role, name string) (response TerminusResponse, err error) {
+func (rr *RoleRequester) ListAll(buf *[]Role) (response TerminusResponse, err error) {
+	sl := rr.Client.C.Get("roles")
+	return doRequest(rr.ctx, sl, buf)
+}
+
+func (rr *RoleRequester) Get(buf *Role, name string) (response TerminusResponse, err error) {
 	sl := rr.Client.C.Get(rr.getURL(name))
-	return doRequest(ctx, sl, buf)
+	return doRequest(rr.ctx, sl, buf)
 }
 
 type RoleCreateOptions struct {
 	Action []string `json:"action"`
 }
 
-func (rr *RoleRequester) Create(ctx context.Context, name string, options *RoleCreateOptions) (response TerminusResponse, err error) {
+func (rr *RoleRequester) Create(name string, options *RoleCreateOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -37,14 +43,14 @@ func (rr *RoleRequester) Create(ctx context.Context, name string, options *RoleC
 		Name string `json:"name"`
 	}{*options, name}
 	sl := rr.Client.C.BodyJSON(body).Post("roles")
-	return doRequest(ctx, sl, nil)
+	return doRequest(rr.ctx, sl, nil)
 }
 
 type RoleUpdateOptions struct {
 	Action []string `json:"action"`
 }
 
-func (rr *RoleRequester) Update(ctx context.Context, name string, options *RoleUpdateOptions) (response TerminusResponse, err error) {
+func (rr *RoleRequester) Update(name string, options *RoleUpdateOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -53,12 +59,12 @@ func (rr *RoleRequester) Update(ctx context.Context, name string, options *RoleU
 		Name string `json:"name"`
 	}{*options, name}
 	sl := rr.Client.C.BodyJSON(body).Put("roles")
-	return doRequest(ctx, sl, nil)
+	return doRequest(rr.ctx, sl, nil)
 }
 
-func (rr *RoleRequester) Delete(ctx context.Context, name string) (response TerminusResponse, err error) {
+func (rr *RoleRequester) Delete(name string) (response TerminusResponse, err error) {
 	sl := rr.Client.C.Delete(rr.getURL(name))
-	return doRequest(ctx, sl, nil)
+	return doRequest(rr.ctx, sl, nil)
 }
 
 func (rr *RoleRequester) getURL(objectID string) string {

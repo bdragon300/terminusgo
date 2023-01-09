@@ -15,12 +15,18 @@ func (ri *RemoteIntroducer) OnDatabase(path DatabasePath) *RemoteRequester {
 
 type RemoteRequester BaseRequester
 
-func (rr *RemoteRequester) ListAllNames(ctx context.Context, buf *[]string) (response TerminusResponse, err error) {
+func (rr *RemoteRequester) WithContext(ctx context.Context) *RemoteRequester {
+	r := *rr
+	r.ctx = ctx
+	return &r
+}
+
+func (rr *RemoteRequester) ListAllNames(buf *[]string) (response TerminusResponse, err error) {
 	var httpResponse struct {
 		RemoteNames []string `json:"api:remote_names"`
 	}
 	sl := rr.Client.C.Get(rr.path.GetURL("remote"))
-	response, err = doRequest(ctx, sl, &httpResponse)
+	response, err = doRequest(rr.ctx, sl, &httpResponse)
 	if err != nil {
 		return
 	}
@@ -29,7 +35,7 @@ func (rr *RemoteRequester) ListAllNames(ctx context.Context, buf *[]string) (res
 	return
 }
 
-func (rr *RemoteRequester) Get(ctx context.Context, buf *Remote, name string) (response TerminusResponse, err error) {
+func (rr *RemoteRequester) Get(buf *Remote, name string) (response TerminusResponse, err error) {
 	query := struct {
 		RemoteName string `url:"remote_name"`
 	}{name}
@@ -38,7 +44,7 @@ func (rr *RemoteRequester) Get(ctx context.Context, buf *Remote, name string) (r
 		RemoteURL  string `json:"api:remote_url"`
 	}
 	sl := rr.Client.C.QueryStruct(query).Get(rr.path.GetURL("remote"))
-	response, err = doRequest(ctx, sl, &httpResponse)
+	response, err = doRequest(rr.ctx, sl, &httpResponse)
 	if err != nil {
 		return
 	}
@@ -47,28 +53,28 @@ func (rr *RemoteRequester) Get(ctx context.Context, buf *Remote, name string) (r
 	return
 }
 
-func (rr *RemoteRequester) Create(ctx context.Context, name, uri string) (response TerminusResponse, err error) {
+func (rr *RemoteRequester) Create(name, uri string) (response TerminusResponse, err error) {
 	body := struct {
 		RemoteName     string `json:"remote_name"`
 		RemoteLocation string `json:"remote_location"`
 	}{name, uri}
 	sl := rr.Client.C.BodyJSON(body).Post(rr.path.GetURL("remote"))
-	return doRequest(ctx, sl, nil)
+	return doRequest(rr.ctx, sl, nil)
 }
 
-func (rr *RemoteRequester) Update(ctx context.Context, name, uri string) (response TerminusResponse, err error) {
+func (rr *RemoteRequester) Update(name, uri string) (response TerminusResponse, err error) {
 	body := struct {
 		RemoteName     string `json:"remote_name"`
 		RemoteLocation string `json:"remote_location"`
 	}{name, uri}
 	sl := rr.Client.C.BodyJSON(body).Put(rr.path.GetURL("remote"))
-	return doRequest(ctx, sl, nil)
+	return doRequest(rr.ctx, sl, nil)
 }
 
-func (rr *RemoteRequester) Delete(ctx context.Context, name string) (response TerminusResponse, err error) {
+func (rr *RemoteRequester) Delete(name string) (response TerminusResponse, err error) {
 	query := struct {
 		RemoteName string `url:"remote_name"`
 	}{name}
 	sl := rr.Client.C.QueryStruct(query).Delete(rr.path.GetURL("remote"))
-	return doRequest(ctx, sl, nil)
+	return doRequest(rr.ctx, sl, nil)
 }

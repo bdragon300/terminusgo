@@ -1,8 +1,6 @@
 package rest
 
-import (
-	"context"
-)
+import "context"
 
 type DiffOp string
 
@@ -20,6 +18,12 @@ type Diff map[string]any
 
 type DiffRequester BaseRequester
 
+func (dr *DiffRequester) WithContext(ctx context.Context) *DiffRequester {
+	r := *dr
+	r.ctx = ctx
+	return &r
+}
+
 type DiffShortOptions struct {
 	Keep      map[string]bool `json:"keep,omitempty"`
 	CopyValue bool            `json:"copy_value,omitempty"`
@@ -34,39 +38,39 @@ type DiffOptions struct {
 	DocumentID        string `json:"document_id,omitempty"`
 }
 
-func (dr *DiffRequester) Diff(ctx context.Context, buf *Diff, options *DiffOptions) (response TerminusResponse, err error) {
+func (dr *DiffRequester) Diff(buf *Diff, options *DiffOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
 	sl := dr.Client.C.BodyJSON(options).Post("diff")
-	return doRequest(ctx, sl, buf)
+	return doRequest(dr.ctx, sl, buf)
 }
 
-func (dr *DiffRequester) Patch(ctx context.Context, buf, before any, diff *Diff) (response TerminusResponse, err error) {
+func (dr *DiffRequester) Patch(buf, before any, diff *Diff) (response TerminusResponse, err error) {
 	body := struct {
 		Before any   `json:"before"`
 		Patch  *Diff `json:"patch"`
 	}{before, diff}
 	sl := dr.Client.C.BodyJSON(body).Post("patch")
-	return doRequest(ctx, sl, buf)
+	return doRequest(dr.ctx, sl, buf)
 }
 
-func (dr *DiffRequester) DiffObjs(ctx context.Context, buf *Diff, objBefore, objAfter any, options *DiffShortOptions) (response TerminusResponse, err error) {
+func (dr *DiffRequester) DiffObjs(buf *Diff, objBefore, objAfter any, options *DiffShortOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
-	return dr.Diff(ctx, buf, &DiffOptions{
+	return dr.Diff(buf, &DiffOptions{
 		DiffShortOptions: *options,
 		Before:           objBefore,
 		After:            objAfter,
 	})
 }
 
-func (dr *DiffRequester) DiffObjAndDocRevision(ctx context.Context, buf *Diff, docRevision string, obj any, docID string, options *DiffShortOptions) (response TerminusResponse, err error) {
+func (dr *DiffRequester) DiffObjAndDocRevision(buf *Diff, docRevision string, obj any, docID string, options *DiffShortOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
-	return dr.Diff(ctx, buf, &DiffOptions{
+	return dr.Diff(buf, &DiffOptions{
 		DiffShortOptions:  *options,
 		After:             obj,
 		BeforeDataVersion: docRevision,
@@ -74,11 +78,11 @@ func (dr *DiffRequester) DiffObjAndDocRevision(ctx context.Context, buf *Diff, d
 	})
 }
 
-func (dr *DiffRequester) DiffDocRevisions(ctx context.Context, buf *Diff, revisionBefore, revisionAfter string, docID string, options *DiffShortOptions) (response TerminusResponse, err error) {
+func (dr *DiffRequester) DiffDocRevisions(buf *Diff, revisionBefore, revisionAfter string, docID string, options *DiffShortOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
-	return dr.Diff(ctx, buf, &DiffOptions{
+	return dr.Diff(buf, &DiffOptions{
 		DiffShortOptions:  *options,
 		BeforeDataVersion: revisionBefore,
 		AfterDataVersion:  revisionAfter,
@@ -86,11 +90,11 @@ func (dr *DiffRequester) DiffDocRevisions(ctx context.Context, buf *Diff, revisi
 	})
 }
 
-func (dr *DiffRequester) DiffAllDocsRevisions(ctx context.Context, buf *Diff, revisionBefore, revisionAfter string, options *DiffShortOptions) (response TerminusResponse, err error) {
+func (dr *DiffRequester) DiffAllDocsRevisions(buf *Diff, revisionBefore, revisionAfter string, options *DiffShortOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
-	return dr.Diff(ctx, buf, &DiffOptions{
+	return dr.Diff(buf, &DiffOptions{
 		DiffShortOptions:  *options,
 		BeforeDataVersion: revisionBefore,
 		AfterDataVersion:  revisionAfter,

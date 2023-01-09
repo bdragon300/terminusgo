@@ -19,24 +19,30 @@ type Organization struct {
 // TODO: test on local instance
 type OrganizationRequester BaseRequester
 
-func (or *OrganizationRequester) ListAll(ctx context.Context, buf *[]Organization) (response TerminusResponse, err error) {
+func (or *OrganizationRequester) WithContext(ctx context.Context) *OrganizationRequester {
+	r := *or
+	r.ctx = ctx
+	return &r
+}
+
+func (or *OrganizationRequester) ListAll(buf *[]Organization) (response TerminusResponse, err error) {
 	sl := or.Client.C.Get("organizations")
-	return doRequest(ctx, sl, buf)
+	return doRequest(or.ctx, sl, buf)
 }
 
-func (or *OrganizationRequester) Get(ctx context.Context, buf *Organization, name string) (response TerminusResponse, err error) {
+func (or *OrganizationRequester) Get(buf *Organization, name string) (response TerminusResponse, err error) {
 	sl := or.Client.C.Get(or.getURL(name))
-	return doRequest(ctx, sl, buf)
+	return doRequest(or.ctx, sl, buf)
 }
 
-func (or *OrganizationRequester) Create(ctx context.Context, name string) (response TerminusResponse, err error) {
+func (or *OrganizationRequester) Create(name string) (response TerminusResponse, err error) {
 	sl := or.Client.C.Post(or.getURL(name))
-	return doRequest(ctx, sl, nil)
+	return doRequest(or.ctx, sl, nil)
 }
 
-func (or *OrganizationRequester) Delete(ctx context.Context, name string) (response TerminusResponse, err error) {
+func (or *OrganizationRequester) Delete(name string) (response TerminusResponse, err error) {
 	sl := or.Client.C.Delete(or.getURL(name))
-	return doRequest(ctx, sl, nil)
+	return doRequest(or.ctx, sl, nil)
 }
 
 func (or *OrganizationRequester) getURL(objectID string) string {

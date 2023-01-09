@@ -40,6 +40,12 @@ type DocumentRequester[DocumentT any] struct {
 	dataVersion string
 }
 
+func (dr *DocumentRequester[DocumentT]) WithContext(ctx context.Context) *DocumentRequester[DocumentT] {
+	r := *dr
+	r.ctx = ctx
+	return &r
+}
+
 func (dr *DocumentRequester[DocumentT]) WithDataVersion(dataVersion string) *DocumentRequester[DocumentT] {
 	dr.dataVersion = dataVersion
 	return dr
@@ -49,7 +55,7 @@ type DocumentIsExistsOptions struct {
 	GraphType GraphTypes `url:"graph_type" default:"instance"`
 }
 
-func (dr *DocumentRequester[DocumentT]) IsExists(ctx context.Context, options *DocumentIsExistsOptions) (exists bool, response TerminusResponse, err error) {
+func (dr *DocumentRequester[DocumentT]) IsExists(options *DocumentIsExistsOptions) (exists bool, response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -57,7 +63,7 @@ func (dr *DocumentRequester[DocumentT]) IsExists(ctx context.Context, options *D
 	if dr.dataVersion != "" {
 		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
 	}
-	response, err = doRequest(ctx, sl, nil)
+	response, err = doRequest(dr.ctx, sl, nil)
 	if err != nil {
 		return
 	}
@@ -75,7 +81,7 @@ type DocumentListOptions struct {
 	Prefixed    bool       `url:"prefixed" default:"true"`
 }
 
-func (dr *DocumentRequester[DocumentT]) ListAll(ctx context.Context, buf *[]DocumentT, options *DocumentListOptions) (response TerminusResponse, err error) {
+func (dr *DocumentRequester[DocumentT]) ListAll(buf *[]DocumentT, options *DocumentListOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -88,10 +94,10 @@ func (dr *DocumentRequester[DocumentT]) ListAll(ctx context.Context, buf *[]Docu
 	if dr.dataVersion != "" {
 		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
 	}
-	return doRequest(ctx, sl, buf)
+	return doRequest(dr.ctx, sl, buf)
 }
 
-func (dr *DocumentRequester[DocumentT]) ListAllIterator(ctx context.Context, items chan<- DocumentT, options *DocumentListOptions) (response *http.Response, err error) {
+func (dr *DocumentRequester[DocumentT]) ListAllIterator(items chan<- DocumentT, options *DocumentListOptions) (response *http.Response, err error) {
 	if items == nil {
 		panic("items channel cannot be nil")
 	}
@@ -110,8 +116,11 @@ func (dr *DocumentRequester[DocumentT]) ListAllIterator(ctx context.Context, ite
 	if err != nil {
 		return nil, err
 	}
+	if dr.ctx != nil {
+		req = req.WithContext(dr.ctx)
+	}
 	// Making a request using implClient since sl drains and closes resp.Body after the request has been made
-	if response, err = dr.Client.implClient.Do(req.WithContext(ctx)); err != nil {
+	if response, err = dr.Client.implClient.Do(req); err != nil {
 		return
 	}
 
@@ -144,7 +153,7 @@ type DocumentGetOptions struct {
 	Prefixed    bool       `url:"prefixed" default:"true"`
 }
 
-func (dr *DocumentRequester[DocumentT]) Get(ctx context.Context, buf *DocumentT, docID string, options *DocumentGetOptions) (response TerminusResponse, err error) {
+func (dr *DocumentRequester[DocumentT]) Get(buf *DocumentT, docID string, options *DocumentGetOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -158,7 +167,7 @@ func (dr *DocumentRequester[DocumentT]) Get(ctx context.Context, buf *DocumentT,
 	if dr.dataVersion != "" {
 		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
 	}
-	return doRequest(ctx, sl, buf)
+	return doRequest(dr.ctx, sl, buf)
 }
 
 type DocumentCreateOptions struct {
@@ -169,14 +178,14 @@ type DocumentCreateOptions struct {
 	FullReplace bool       `url:"full_replace,omitempty"`
 }
 
-func (dr *DocumentRequester[DocumentT]) Create(ctx context.Context, doc DocumentT, options *DocumentCreateOptions) (response TerminusResponse, err error) {
+func (dr *DocumentRequester[DocumentT]) Create(doc DocumentT, options *DocumentCreateOptions) (response TerminusResponse, err error) {
 	var docSlice []DocumentT
 	docSlice = append(docSlice, doc)
-	_, response, err = dr.CreateBulk(ctx, docSlice, options)
+	_, response, err = dr.CreateBulk(docSlice, options)
 	return
 }
 
-func (dr *DocumentRequester[DocumentT]) CreateBulk(ctx context.Context, docs []DocumentT, options *DocumentCreateOptions) (insertedIDs []string, response TerminusResponse, err error) {
+func (dr *DocumentRequester[DocumentT]) CreateBulk(docs []DocumentT, options *DocumentCreateOptions) (insertedIDs []string, response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -185,7 +194,7 @@ func (dr *DocumentRequester[DocumentT]) CreateBulk(ctx context.Context, docs []D
 	if dr.dataVersion != "" {
 		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
 	}
-	response, err = doRequest(ctx, sl, &insertedIDs)
+	response, err = doRequest(dr.ctx, sl, &insertedIDs)
 	return
 }
 
@@ -197,7 +206,7 @@ type DocumentUpdateOptions struct {
 	Create    bool       `url:"create,omitempty"`
 }
 
-func (dr *DocumentRequester[DocumentT]) UpdateBulk(ctx context.Context, docs []DocumentT, options *DocumentUpdateOptions) (updatedIDs []string, response TerminusResponse, err error) {
+func (dr *DocumentRequester[DocumentT]) UpdateBulk(docs []DocumentT, options *DocumentUpdateOptions) (updatedIDs []string, response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -206,14 +215,14 @@ func (dr *DocumentRequester[DocumentT]) UpdateBulk(ctx context.Context, docs []D
 	if dr.dataVersion != "" {
 		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
 	}
-	response, err = doRequest(ctx, sl, &updatedIDs)
+	response, err = doRequest(dr.ctx, sl, &updatedIDs)
 	return
 }
 
-func (dr *DocumentRequester[DocumentT]) Update(ctx context.Context, doc DocumentT, options *DocumentUpdateOptions) (response TerminusResponse, err error) {
+func (dr *DocumentRequester[DocumentT]) Update(doc DocumentT, options *DocumentUpdateOptions) (response TerminusResponse, err error) {
 	var docSlice []DocumentT
 	docSlice = append(docSlice, doc)
-	_, response, err = dr.UpdateBulk(ctx, docSlice, options)
+	_, response, err = dr.UpdateBulk(docSlice, options)
 	return
 }
 
@@ -225,7 +234,7 @@ type DocumentDeleteOptions struct {
 	ID        string     `json:"id,omitempty"`
 }
 
-func (dr *DocumentRequester[DocumentT]) DeleteBulk(ctx context.Context, docIDs []string, options *DocumentDeleteOptions) (deletedIDs []string, response TerminusResponse, err error) {
+func (dr *DocumentRequester[DocumentT]) DeleteBulk(docIDs []string, options *DocumentDeleteOptions) (deletedIDs []string, response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -234,13 +243,13 @@ func (dr *DocumentRequester[DocumentT]) DeleteBulk(ctx context.Context, docIDs [
 	if dr.dataVersion != "" {
 		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
 	}
-	response, err = doRequest(ctx, sl, &deletedIDs)
+	response, err = doRequest(dr.ctx, sl, &deletedIDs)
 	return
 }
 
-func (dr *DocumentRequester[DocumentT]) Delete(ctx context.Context, docID string, options *DocumentDeleteOptions) (response TerminusResponse, err error) {
+func (dr *DocumentRequester[DocumentT]) Delete(docID string, options *DocumentDeleteOptions) (response TerminusResponse, err error) {
 	var docSlice []string
 	docSlice = append(docSlice, docID)
-	_, response, err = dr.DeleteBulk(ctx, docSlice, options)
+	_, response, err = dr.DeleteBulk(docSlice, options)
 	return
 }

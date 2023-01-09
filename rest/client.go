@@ -48,7 +48,7 @@ func (c *Client) Organizations() *OrganizationRequester {
 }
 
 func (c *Client) Databases() *DatabaseIntroducer {
-	return &DatabaseIntroducer{client: c}
+	return &DatabaseIntroducer{BaseIntroducer: BaseIntroducer{client: c}}
 }
 
 func (c *Client) Repos() *RepoIntroducer {

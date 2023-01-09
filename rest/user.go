@@ -30,46 +30,52 @@ func (ui *UserIntroducer) OnServer() *UserRequester {
 
 type UserRequester BaseRequester
 
+func (ur *UserRequester) WithContext(ctx context.Context) *UserRequester {
+	r := *ur
+	r.ctx = ctx
+	return &r
+}
+
 type UserListAllOptions struct {
 	Capability bool `json:"capability" default:"false"`
 }
 
-func (ur *UserRequester) ListAll(ctx context.Context, buf *[]User, options *UserListAllOptions) (response TerminusResponse, err error) {
+func (ur *UserRequester) ListAll(buf *[]User, options *UserListAllOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
 	sl := ur.Client.C.QueryStruct(options).Get(ur.getURL(""))
-	return doRequest(ctx, sl, buf)
+	return doRequest(ur.ctx, sl, buf)
 }
 
 type UserGetOptions struct {
 	Capability bool `json:"capability" default:"false"`
 }
 
-func (ur *UserRequester) Get(ctx context.Context, buf *User, name string, options *UserListAllOptions) (response TerminusResponse, err error) {
+func (ur *UserRequester) Get(buf *User, name string, options *UserListAllOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
 	sl := ur.Client.C.QueryStruct(options).Get(ur.getURL(name))
-	return doRequest(ctx, sl, buf)
+	return doRequest(ur.ctx, sl, buf)
 }
 
-func (ur *UserRequester) Create(ctx context.Context, name, password string) (response TerminusResponse, err error) {
+func (ur *UserRequester) Create(name, password string) (response TerminusResponse, err error) {
 	body := struct {
 		Name     string `json:"name"`
 		Password string `json:"password,omitempty"`
 	}{name, password}
 	sl := ur.Client.C.BodyJSON(body).Post("users")
-	return doRequest(ctx, sl, nil)
+	return doRequest(ur.ctx, sl, nil)
 }
 
-func (ur *UserRequester) UpdatePassword(ctx context.Context, name, password string) (response TerminusResponse, err error) {
+func (ur *UserRequester) UpdatePassword(name, password string) (response TerminusResponse, err error) {
 	body := struct {
 		Name     string `json:"name"`
 		Password string `json:"password"`
 	}{name, password}
 	sl := ur.Client.C.BodyJSON(body).Put("users")
-	return doRequest(ctx, sl, nil)
+	return doRequest(ur.ctx, sl, nil)
 }
 
 type UserUpdateCapabilitiesOptions struct {
@@ -85,7 +91,7 @@ const (
 	UserRevokeCapabilities UserCapabilitiesOperation = "revoke"
 )
 
-func (ur *UserRequester) UpdateCapabilities(ctx context.Context, name string, operation UserCapabilitiesOperation, options *UserUpdateCapabilitiesOptions) (response TerminusResponse, err error) {
+func (ur *UserRequester) UpdateCapabilities(name string, operation UserCapabilitiesOperation, options *UserUpdateCapabilitiesOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -95,7 +101,7 @@ func (ur *UserRequester) UpdateCapabilities(ctx context.Context, name string, op
 		Operation string `json:"operation"`
 	}{*options, name, string(operation)}
 	sl := ur.Client.C.BodyJSON(body).Post("capabilities")
-	return doRequest(ctx, sl, nil)
+	return doRequest(ur.ctx, sl, nil)
 }
 
 func (ur *UserRequester) getURL(objectID string) string {

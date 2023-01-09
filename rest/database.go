@@ -45,16 +45,25 @@ type DatabaseInfo struct {
 	State        string    `json:"state"`
 }
 
-type DatabaseIntroducer BaseIntroducer
+type DatabaseIntroducer struct {
+	BaseIntroducer
+	ctx context.Context
+}
 
 func (di *DatabaseIntroducer) OnOrganization(path OrganizationPath) *DatabaseRequester {
 	return &DatabaseRequester{BaseRequester: BaseRequester{Client: di.client, path: path}}
 }
 
-func (di *DatabaseIntroducer) ListDatabaseInfo(ctx context.Context, buf *[]DatabaseInfo) (response TerminusResponse, err error) {
+func (di *DatabaseIntroducer) WithContext(ctx context.Context) *DatabaseIntroducer {
+	r := *di
+	r.ctx = ctx
+	return &r
+}
+
+func (di *DatabaseIntroducer) ListDatabaseInfo(buf *[]DatabaseInfo) (response TerminusResponse, err error) {
 	query := map[string]any{"verbose": true, "branches": true}
 	sl := di.client.C.QueryStruct(&query).Get("db")
-	return doRequest(ctx, sl, buf)
+	return doRequest(di.ctx, sl, buf)
 }
 
 type DatabaseRequester struct {
@@ -62,12 +71,18 @@ type DatabaseRequester struct {
 	dataVersion string
 }
 
+func (dr *DatabaseRequester) WithContext(ctx context.Context) *DatabaseRequester {
+	r := *dr
+	r.ctx = ctx
+	return &r
+}
+
 func (dr *DatabaseRequester) WithDataVersion(dataVersion string) *DatabaseRequester {
 	dr.dataVersion = dataVersion
 	return dr
 }
 
-func (dr *DatabaseRequester) ListAll(ctx context.Context, buf *[]Database, userName string) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) ListAll(buf *[]Database, userName string) (response TerminusResponse, err error) {
 	URL := "/" // Current user databases by default
 	if userName != "" {
 		URL = fmt.Sprintf(
@@ -76,13 +91,13 @@ func (dr *DatabaseRequester) ListAll(ctx context.Context, buf *[]Database, userN
 		)
 	}
 	sl := dr.Client.C.Get(URL)
-	return doRequest(ctx, sl, buf)
+	return doRequest(dr.ctx, sl, buf)
 }
 
-func (dr *DatabaseRequester) Get(ctx context.Context, buf *Database, name string) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Get(buf *Database, name string) (response TerminusResponse, err error) {
 	options := map[string]any{"verbose": true, "branches": true}
 	sl := dr.Client.C.QueryStruct(options).Get(dr.getURL(name, "db"))
-	return doRequest(ctx, sl, buf)
+	return doRequest(dr.ctx, sl, buf)
 }
 
 type DatabaseCreateOptions struct {
@@ -92,7 +107,7 @@ type DatabaseCreateOptions struct {
 	Prefixes *Prefix `json:"prefixes,omitempty"`
 }
 
-func (dr *DatabaseRequester) Create(ctx context.Context, name, label string, options *DatabaseCreateOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Create(name, label string, options *DatabaseCreateOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -101,24 +116,24 @@ func (dr *DatabaseRequester) Create(ctx context.Context, name, label string, opt
 		Label string `json:"label"`
 	}{*options, label}
 	sl := dr.Client.C.BodyJSON(body).Post(dr.getURL(name, "db"))
-	return doRequest(ctx, sl, nil)
+	return doRequest(dr.ctx, sl, nil)
 }
 
 type DatabaseDeleteOptions struct {
 	Force bool `url:"force,omitempty"`
 }
 
-func (dr *DatabaseRequester) Delete(ctx context.Context, name string, options *DatabaseDeleteOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Delete(name string, options *DatabaseDeleteOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
 	sl := dr.Client.C.QueryStruct(options).Delete(dr.getURL(name, "db"))
-	return doRequest(ctx, sl, nil)
+	return doRequest(dr.ctx, sl, nil)
 }
 
-func (dr *DatabaseRequester) IsExists(ctx context.Context, name string) (exists bool, response TerminusResponse, err error) {
+func (dr *DatabaseRequester) IsExists(name string) (exists bool, response TerminusResponse, err error) {
 	sl := dr.Client.C.Head(dr.getURL(name, "db"))
-	response, err = doRequest(ctx, sl, nil)
+	response, err = doRequest(dr.ctx, sl, nil)
 	if err != nil {
 		return
 	}
@@ -134,12 +149,12 @@ type DatabaseUpdateOptions struct {
 	Prefixes *Prefix `json:"prefixes,omitempty"`
 }
 
-func (dr *DatabaseRequester) Update(ctx context.Context, name string, options *DatabaseUpdateOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Update(name string, options *DatabaseUpdateOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
 	sl := dr.Client.C.BodyJSON(options).Put(dr.getURL(name, "db"))
-	return doRequest(ctx, sl, nil)
+	return doRequest(dr.ctx, sl, nil)
 }
 
 type DatabaseWOQLOptions struct {
@@ -149,7 +164,7 @@ type DatabaseWOQLOptions struct {
 }
 
 // Query with database context
-func (dr *DatabaseRequester) WOQL(ctx context.Context, buf *srverror.WOQLResponse, name string, query bare.RawQuery, options *DatabaseWOQLOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) WOQL(buf *srverror.WOQLResponse, name string, query bare.RawQuery, options *DatabaseWOQLOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -163,7 +178,7 @@ func (dr *DatabaseRequester) WOQL(ctx context.Context, buf *srverror.WOQLRespons
 		Query        bare.RawQuery `json:"query"`
 	}{options.AllWitnesses, commitInfo{options.CommitAuthor, options.CommitMessage}, query}
 	sl := dr.Client.C.BodyJSON(body).Post(dr.getURL(name, "woql"))
-	return doRequest(ctx, sl, buf)
+	return doRequest(dr.ctx, sl, buf)
 }
 
 type DatabaseCloneOptions struct {
@@ -172,7 +187,7 @@ type DatabaseCloneOptions struct {
 	Comment   string `json:"comment" default:"Default comment"`
 }
 
-func (dr *DatabaseRequester) Clone(ctx context.Context, newName, newLabel string, options *DatabaseCloneOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Clone(newName, newLabel string, options *DatabaseCloneOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -181,13 +196,13 @@ func (dr *DatabaseRequester) Clone(ctx context.Context, newName, newLabel string
 		Label string `json:"label"`
 	}{*options, newLabel}
 	sl := dr.Client.C.BodyJSON(body).Post(dr.getURL(newName, "clone"))
-	return doRequest(ctx, sl, nil)
+	return doRequest(dr.ctx, sl, nil)
 }
 
 // TODO: figure out what prefixes are
-func (dr *DatabaseRequester) Prefixes(ctx context.Context, buf *Prefix, dbName string) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Prefixes(buf *Prefix, dbName string) (response TerminusResponse, err error) {
 	sl := dr.Client.C.Get(dr.getURL(dbName, "prefixes"))
-	return doRequest(ctx, sl, buf)
+	return doRequest(dr.ctx, sl, buf)
 }
 
 type DatabaseCommitLogOptions struct {
@@ -195,17 +210,17 @@ type DatabaseCommitLogOptions struct {
 	Start int `url:"start,omitempty" default:"0"`
 }
 
-func (dr *DatabaseRequester) CommitLog(ctx context.Context, buf *[]Commit, name string, options *DatabaseCommitLogOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) CommitLog(buf *[]Commit, name string, options *DatabaseCommitLogOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
 	sl := dr.Client.C.QueryStruct(options).Get(dr.getURL(name, "log"))
-	return doRequest(ctx, sl, buf)
+	return doRequest(dr.ctx, sl, buf)
 }
 
-func (dr *DatabaseRequester) Optimize(ctx context.Context, dbName string) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Optimize(dbName string) (response TerminusResponse, err error) {
 	sl := dr.Client.C.Post(dr.getURL(dbName, "optimize"))
-	return doRequest(ctx, sl, nil)
+	return doRequest(dr.ctx, sl, nil)
 }
 
 type DatabaseSchemaFrameOptions struct {
@@ -213,13 +228,13 @@ type DatabaseSchemaFrameOptions struct {
 	ExpandAbstract bool `json:"expand_abstract" default:"true"`
 }
 
-func (dr *DatabaseRequester) SchemaFrameAll(ctx context.Context, buf *[]schema.RawSchemaItem, name string, options *DatabaseSchemaFrameOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) SchemaFrameAll(buf *[]schema.RawSchemaItem, name string, options *DatabaseSchemaFrameOptions) (response TerminusResponse, err error) {
 	var resp map[string]map[string]any
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
 	sl := dr.Client.C.QueryStruct(options).Get(dr.getURL(name, "schema"))
-	response, err = doRequest(ctx, sl, &resp)
+	response, err = doRequest(dr.ctx, sl, &resp)
 	if err != nil {
 		return
 	}
@@ -231,7 +246,7 @@ func (dr *DatabaseRequester) SchemaFrameAll(ctx context.Context, buf *[]schema.R
 	return
 }
 
-func (dr *DatabaseRequester) SchemaFrameType(ctx context.Context, buf *schema.RawSchemaItem, name, docType string, options *DatabaseSchemaFrameOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) SchemaFrameType(buf *schema.RawSchemaItem, name, docType string, options *DatabaseSchemaFrameOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -240,14 +255,14 @@ func (dr *DatabaseRequester) SchemaFrameType(ctx context.Context, buf *schema.Ra
 		Type string `json:"type"`
 	}{*options, docType}
 	sl := dr.Client.C.QueryStruct(params).Get(dr.getURL(name, "schema"))
-	return doRequest(ctx, sl, buf)
+	return doRequest(dr.ctx, sl, buf)
 }
 
 type DatabasePackOptions struct {
 	RepositoryHead string `json:"repository_head,omitempty"`
 }
 
-func (dr *DatabaseRequester) Pack(ctx context.Context, buf io.Writer, name string, options *DatabasePackOptions) (writtenBytes int64, response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Pack(buf io.Writer, name string, options *DatabasePackOptions) (writtenBytes int64, response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -257,8 +272,11 @@ func (dr *DatabaseRequester) Pack(ctx context.Context, buf io.Writer, name strin
 	if httpReq, err = sl.Request(); err != nil {
 		return
 	}
+	if dr.ctx != nil {
+		httpReq = httpReq.WithContext(dr.ctx)
+	}
 	var httpResp *http.Response
-	if httpResp, err = dr.Client.implClient.Do(httpReq.WithContext(ctx)); err != nil {
+	if httpResp, err = dr.Client.implClient.Do(httpReq); err != nil {
 		return
 	}
 	defer httpResp.Body.Close()
@@ -272,12 +290,15 @@ func (dr *DatabaseRequester) Pack(ctx context.Context, buf io.Writer, name strin
 	return
 }
 
-func (dr *DatabaseRequester) UnpackCreateFile(ctx context.Context, name string, size int64, metadata map[string]string) (file tusgo.File, response TerminusResponse, err error) {
+func (dr *DatabaseRequester) UnpackCreateFile(name string, size int64, metadata map[string]string) (file tusgo.File, response TerminusResponse, err error) {
 	var unpackURL *url.URL
 	if unpackURL, err = url.Parse(path.Join(dr.Client.baseAPIURL, "unpack")); err != nil {
 		return
 	}
-	tusClient := tusgo.NewClient(dr.Client.implClient, unpackURL).WithContext(ctx)
+	tusClient := tusgo.NewClient(dr.Client.implClient, unpackURL)
+	if dr.ctx != nil {
+		tusClient = tusClient.WithContext(dr.ctx)
+	}
 
 	meta := make(map[string]string)
 	for k, v := range metadata {
@@ -301,22 +322,25 @@ func (dr *DatabaseRequester) UnpackCreateFile(ctx context.Context, name string, 
 	return
 }
 
-func (dr *DatabaseRequester) Unpack(ctx context.Context, data io.Reader, file tusgo.File) (readBytes int64, response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Unpack(data io.Reader, file tusgo.File) (readBytes int64, response TerminusResponse, err error) {
 	var unpackURL *url.URL
 	if unpackURL, err = url.Parse(path.Join(dr.Client.baseAPIURL, "unpack")); err != nil {
 		return
 	}
 	tusClient := tusgo.NewClient(dr.Client.implClient, unpackURL)
 
-	stream := tusgo.NewUploadStream(tusClient, file).WithContext(ctx)
+	if dr.ctx != nil {
+		tusClient = tusClient.WithContext(dr.ctx)
+	}
+	stream := tusgo.NewUploadStream(tusClient, file)
 	readBytes, err = stream.ReadFrom(data)
 	return
 }
 
-func (dr *DatabaseRequester) UnpackResourceURI(ctx context.Context, name, resourceURI string) (readBytes int64, response TerminusResponse, err error) {
+func (dr *DatabaseRequester) UnpackResourceURI(name, resourceURI string) (readBytes int64, response TerminusResponse, err error) {
 	body := map[string]string{"resource_uri": resourceURI}
 	sl := dr.Client.C.BodyJSON(body).Post(dr.getURL(name, "unpack"))
-	response, err = doRequest(ctx, sl, nil)
+	response, err = doRequest(dr.ctx, sl, nil)
 	return
 }
 
