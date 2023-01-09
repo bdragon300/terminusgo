@@ -1,6 +1,11 @@
 module github.com/bdragon300/terminusgo
 
-go 1.19
+go 1.18
+
+replace (
+	github.com/bdragon300/tusgo v0.0.0 => /home/gosha/proj/tusgo
+)
+require github.com/bdragon300/tusgo v0.0.0
 
 require github.com/dghubble/sling v1.4.0
 
@@ -11,6 +16,8 @@ require (
 	github.com/huandu/go-clone v1.4.0
 	github.com/mitchellh/mapstructure v1.5.0
 )
+
+require github.com/eventials/go-tus v0.0.0-20220610120217-05d0564bb571 // indirect
 
 require (
 	github.com/gobeam/stringy v0.0.5

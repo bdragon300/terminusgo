@@ -3,6 +3,10 @@ package rest
 import (
 	"context"
 	"net/http"
+	"net/url"
+	"path"
+
+	"github.com/bdragon300/tusgo"
 
 	"github.com/bdragon300/terminusgo/srverror"
 	"github.com/bdragon300/terminusgo/woql/bare"
@@ -15,6 +19,7 @@ import (
 // TODO: api_init.pl paths and filenames and headers
 type Client struct {
 	C          *sling.Sling
+	baseAPIURL string
 	implClient *http.Client
 }
 
@@ -22,7 +27,8 @@ func NewClient(hostPath string) *Client {
 	cl := &Client{C: sling.New()}
 	cl.implClient = cleanhttp.DefaultPooledClient()
 	cl.C.Client(cl.implClient) // TODO: passing context (Timeout for instance) by user to a request
-	cl.C.Base(hostPath + "/api")
+	cl.baseAPIURL = hostPath + "/api"
+	cl.C.Base(cl.baseAPIURL)
 
 	return cl
 }
@@ -71,6 +77,20 @@ func (c *Client) Remotes() *RemoteIntroducer {
 
 func (c *Client) Roles() *RoleRequester {
 	return &RoleRequester{Client: c}
+}
+
+func (c *Client) Diffs() *DiffRequester {
+	return &DiffRequester{Client: c}
+}
+
+func (c *Client) Files() *FilesIntroducer {
+	u := path.Join(c.baseAPIURL, "files")
+	if filesURL, err := url.Parse(u); err != nil {
+		panic(err)
+	} else {
+		tusClient := tusgo.NewClient(c.implClient, filesURL)
+		return &FilesIntroducer{BaseIntroducer: BaseIntroducer{client: c}, tusClient: tusClient}
+	}
 }
 
 func (c *Client) Ping(ctx context.Context) (response TerminusResponse, err error) {

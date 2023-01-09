@@ -8,6 +8,7 @@ import (
 const (
 	DataVersionHeader         = "Terminusdb-Data-Version"
 	RemoteAuthorizationHeader = "Authorization-Remote"
+	XTerminusDBApiBaseHeader  = "X-Terminusdb-Api-Base"
 )
 
 type TerminusErrorResponse struct {

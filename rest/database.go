@@ -1,14 +1,16 @@
 package rest
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"time"
+
+	"github.com/bdragon300/tusgo"
 
 	"github.com/bdragon300/terminusgo/schema"
 	"github.com/bdragon300/terminusgo/srverror"
@@ -270,13 +272,44 @@ func (dr *DatabaseRequester) Pack(ctx context.Context, buf io.Writer, name strin
 	return
 }
 
-func (dr *DatabaseRequester) Unpack(ctx context.Context, data io.Reader, name string) (readBytes int64, response TerminusResponse, err error) {
-	buf := bytes.NewBuffer(nil)
-	if readBytes, err = buf.ReadFrom(data); err != nil {
+func (dr *DatabaseRequester) UnpackCreateFile(ctx context.Context, name string, size int64, metadata map[string]string) (file tusgo.File, response TerminusResponse, err error) {
+	var unpackURL *url.URL
+	if unpackURL, err = url.Parse(path.Join(dr.Client.baseAPIURL, "unpack")); err != nil {
 		return
 	}
-	sl := dr.Client.C.Body(buf).Post(dr.getURL(name, "unpack"))
-	response, err = doRequest(ctx, sl, nil)
+	tusClient := tusgo.NewClient(dr.Client.implClient, unpackURL).WithContext(ctx)
+
+	meta := make(map[string]string)
+	for k, v := range metadata {
+		meta[k] = v
+	}
+	meta["filename"] = name
+	file = tusgo.File{
+		Metadata:   meta,
+		RemoteSize: size,
+	}
+
+	var resp *http.Response
+	if resp, err = tusClient.CreateFile(&file); err != nil {
+		return
+	}
+	if resp.StatusCode >= 300 {
+		response = &srverror.TerminusErrorResponse{Response: resp}
+		return
+	}
+	response = &srverror.TerminusOkResponse{Response: resp}
+	return
+}
+
+func (dr *DatabaseRequester) Unpack(ctx context.Context, data io.Reader, file tusgo.File) (readBytes int64, response TerminusResponse, err error) {
+	var unpackURL *url.URL
+	if unpackURL, err = url.Parse(path.Join(dr.Client.baseAPIURL, "unpack")); err != nil {
+		return
+	}
+	tusClient := tusgo.NewClient(dr.Client.implClient, unpackURL)
+
+	stream := tusgo.NewUploadStream(tusClient, file).WithContext(ctx)
+	readBytes, err = stream.ReadFrom(data)
 	return
 }
 
