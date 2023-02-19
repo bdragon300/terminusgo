@@ -2,10 +2,7 @@ module github.com/bdragon300/terminusgo
 
 go 1.18
 
-replace (
-	github.com/bdragon300/tusgo v0.0.0 => /home/gosha/proj/tusgo
-)
-require github.com/bdragon300/tusgo v0.0.0
+require github.com/bdragon300/tusgo v0.1.1
 
 require github.com/dghubble/sling v1.4.0
 
@@ -16,8 +13,6 @@ require (
 	github.com/huandu/go-clone v1.4.0
 	github.com/mitchellh/mapstructure v1.5.0
 )
-
-require github.com/eventials/go-tus v0.0.0-20220610120217-05d0564bb571 // indirect
 
 require (
 	github.com/gobeam/stringy v0.0.5
@@ -30,8 +25,8 @@ require (
 	github.com/go-playground/validator/v10 v10.11.1
 	github.com/leodido/go-urn v1.2.1 // indirect
 	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3 // indirect
-	golang.org/x/sys v0.1.0 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/text v0.6.0 // indirect
 )
 
 require (

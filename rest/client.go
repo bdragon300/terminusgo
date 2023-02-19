@@ -3,10 +3,9 @@ package rest
 import (
 	"context"
 	"net/http"
-	"net/url"
 	"path"
 
-	"github.com/bdragon300/tusgo"
+	"github.com/bdragon300/terminusgo/tusc"
 
 	"github.com/bdragon300/terminusgo/srverror"
 	"github.com/bdragon300/terminusgo/woql/bare"
@@ -85,12 +84,8 @@ func (c *Client) Diffs() *DiffRequester {
 
 func (c *Client) Files() *FilesIntroducer {
 	u := path.Join(c.baseAPIURL, "files")
-	if filesURL, err := url.Parse(u); err != nil {
-		panic(err)
-	} else {
-		tusClient := tusgo.NewClient(c.implClient, filesURL)
-		return &FilesIntroducer{BaseIntroducer: BaseIntroducer{client: c}, tusClient: tusClient}
-	}
+	tusClient := tusc.New(c.implClient, u)
+	return &FilesIntroducer{BaseIntroducer: BaseIntroducer{client: c}, tusClient: tusClient}
 }
 
 func (c *Client) Ping(ctx context.Context) (response TerminusResponse, err error) {

@@ -5,13 +5,15 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/bdragon300/terminusgo/tusc"
+
 	"github.com/bdragon300/terminusgo/srverror"
 	"github.com/bdragon300/tusgo"
 )
 
 type FilesIntroducer struct {
 	BaseIntroducer
-	tusClient *tusgo.Client
+	tusClient *tusc.Client
 	ctx       context.Context
 }
 
@@ -22,7 +24,7 @@ func (fi *FilesIntroducer) WithContext(ctx context.Context) *FilesIntroducer {
 }
 
 func (fi *FilesIntroducer) WithRemoteBaseURI(baseURI string) *FilesIntroducer {
-	fi.tusClient.GetRequest = func(method, url string, body io.Reader, _ *tusgo.Client, _ *http.Client, _ *tusgo.ServerCapabilities) (req *http.Request, err error) {
+	fi.tusClient.GetRequest = func(method, url string, body io.Reader, _ *tusgo.Client, _ *http.Client) (req *http.Request, err error) {
 		if req, err = http.NewRequest(method, url, body); err != nil {
 			return
 		}
@@ -32,22 +34,10 @@ func (fi *FilesIntroducer) WithRemoteBaseURI(baseURI string) *FilesIntroducer {
 	return fi
 }
 
-func (fi *FilesIntroducer) TusClient() *tusgo.Client {
+func (fi *FilesIntroducer) GetClient() *tusc.Client {
 	res := fi.tusClient
 	if fi.ctx != nil {
 		res = res.WithContext(fi.ctx)
 	}
 	return res
-}
-
-func NewTusFile(filename string, size int64, metadata map[string]string) *tusgo.File {
-	meta := make(map[string]string)
-	for k, v := range metadata {
-		meta[k] = v
-	}
-	meta["filename"] = filename
-	return &tusgo.File{
-		Metadata:   meta,
-		RemoteSize: size,
-	}
 }

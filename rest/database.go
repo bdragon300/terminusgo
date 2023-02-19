@@ -7,10 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
 	"time"
-
-	"github.com/bdragon300/tusgo"
 
 	"github.com/bdragon300/terminusgo/schema"
 	"github.com/bdragon300/terminusgo/srverror"
@@ -290,56 +287,15 @@ func (dr *DatabaseRequester) Pack(buf io.Writer, name string, options *DatabaseP
 	return
 }
 
-func (dr *DatabaseRequester) UnpackCreateFile(name string, size int64, metadata map[string]string) (file tusgo.File, response TerminusResponse, err error) {
-	var unpackURL *url.URL
-	if unpackURL, err = url.Parse(path.Join(dr.Client.baseAPIURL, "unpack")); err != nil {
-		return
-	}
-	tusClient := tusgo.NewClient(dr.Client.implClient, unpackURL)
-	if dr.ctx != nil {
-		tusClient = tusClient.WithContext(dr.ctx)
-	}
-
-	meta := make(map[string]string)
-	for k, v := range metadata {
-		meta[k] = v
-	}
-	meta["filename"] = name
-	file = tusgo.File{
-		Metadata:   meta,
-		RemoteSize: size,
-	}
-
-	var resp *http.Response
-	if resp, err = tusClient.CreateFile(&file); err != nil {
-		return
-	}
-	if resp.StatusCode >= 300 {
-		response = &srverror.TerminusErrorResponse{Response: resp}
-		return
-	}
-	response = &srverror.TerminusOkResponse{Response: resp}
+func (dr *DatabaseRequester) UnpackUpload(dbName string, data io.Reader) (readBytes int64, response TerminusResponse, err error) {
+	sl := dr.Client.C.Body(data).Post(dr.getURL(dbName, "unpack"))
+	response, err = doRequest(dr.ctx, sl, nil)
 	return
 }
 
-func (dr *DatabaseRequester) Unpack(data io.Reader, file tusgo.File) (readBytes int64, response TerminusResponse, err error) {
-	var unpackURL *url.URL
-	if unpackURL, err = url.Parse(path.Join(dr.Client.baseAPIURL, "unpack")); err != nil {
-		return
-	}
-	tusClient := tusgo.NewClient(dr.Client.implClient, unpackURL)
-
-	if dr.ctx != nil {
-		tusClient = tusClient.WithContext(dr.ctx)
-	}
-	stream := tusgo.NewUploadStream(tusClient, file)
-	readBytes, err = stream.ReadFrom(data)
-	return
-}
-
-func (dr *DatabaseRequester) UnpackResourceURI(name, resourceURI string) (readBytes int64, response TerminusResponse, err error) {
-	body := map[string]string{"resource_uri": resourceURI}
-	sl := dr.Client.C.BodyJSON(body).Post(dr.getURL(name, "unpack"))
+func (dr *DatabaseRequester) UnpackTusResource(dbName, tusLocation string) (readBytes int64, response TerminusResponse, err error) {
+	body := map[string]string{"resource_uri": tusLocation}
+	sl := dr.Client.C.BodyJSON(body).Post(dr.getURL(dbName, "unpack"))
 	response, err = doRequest(dr.ctx, sl, nil)
 	return
 }
