@@ -8,7 +8,7 @@ import (
 const (
 	DataVersionHeader         = "Terminusdb-Data-Version"
 	RemoteAuthorizationHeader = "Authorization-Remote"
-	XTerminusDBApiBaseHeader  = "X-Terminusdb-Api-Base" // related to resumable_endpoint option in tus prolog client...
+	XTerminusDBApiBaseHeader  = "X-Terminusdb-Api-Base" // TODO: related to resumable_endpoint option in tus prolog client...
 )
 
 type TerminusErrorResponse struct {
