@@ -98,10 +98,14 @@ func (tr *TripleRequester) Update(data *string, options *TripleUpdateOptions) (r
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
+	commitInfo := struct {
+		Author  string `json:"author"`
+		Message string `json:"message"`
+	}{Author: options.Author, Message: options.Message}
 	body := struct {
 		CommitInfo any     `json:"commit_info"`
 		Turtle     *string `json:"turtle"`
-	}{*options, data}
+	}{CommitInfo: commitInfo, Turtle: data}
 	sl := tr.Client.C.BodyJSON(body).Post(tr.getURL("pack", options.GraphType))
 	return doRequest(tr.ctx, sl, nil)
 }
@@ -119,10 +123,14 @@ func (tr *TripleRequester) Insert(data *string, options *TripleInsertOptions) (r
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
+	commitInfo := struct {
+		Author  string `json:"author"`
+		Message string `json:"message"`
+	}{Author: options.Author, Message: options.Message}
 	body := struct {
 		CommitInfo any     `json:"commit_info"`
 		Turtle     *string `json:"turtle"`
-	}{*options, data}
+	}{CommitInfo: commitInfo, Turtle: data}
 	sl := tr.Client.C.BodyJSON(body).Post(tr.getURL("pack", options.GraphType))
 	return doRequest(tr.ctx, sl, nil)
 }

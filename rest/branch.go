@@ -123,9 +123,13 @@ func (br *BranchRequester) Squash(branchID string, options *BranchSquashOptions)
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
+	commitInfo := struct {
+		Author  string `json:"author"`
+		Message string `json:"message"`
+	}{Author: options.Author, Message: options.Message}
 	body := struct {
 		CommitInfo any `json:"commit_info"`
-	}{*options}
+	}{commitInfo}
 	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "squash"))
 	return doRequest(br.ctx, sl, nil)
 }
@@ -167,16 +171,16 @@ func (br *BranchRequester) Apply(branchID, beforeCommit, afterCommit string, opt
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
-	type commitInfo struct {
+	commitInfo := struct {
 		Author  string `json:"author"`
 		Message string `json:"message"`
-	}
+	}{Author: options.Author, Message: options.Message}
 	body := struct {
 		BranchApplyOptions
-		CommitInfo   commitInfo `json:"commit_info"`
-		BeforeCommit string     `json:"before_commit"`
-		AfterCommit  string     `json:"after_commit"`
-	}{*options, commitInfo{options.Author, options.Message}, beforeCommit, afterCommit}
+		CommitInfo   any    `json:"commit_info"`
+		BeforeCommit string `json:"before_commit"`
+		AfterCommit  string `json:"after_commit"`
+	}{*options, commitInfo, beforeCommit, afterCommit}
 	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "apply"))
 	return doRequest(br.ctx, sl, nil)
 }
@@ -231,8 +235,8 @@ func (br *BranchRequester) Optimize(branchID string) (response TerminusResponse,
 }
 
 type BranchSchemaFrameOptions struct {
-	CompressIDs    bool `json:"compress_ids" default:"true"`
-	ExpandAbstract bool `json:"expand_abstract" default:"true"`
+	CompressIDs    bool `url:"compress_ids" default:"true"`
+	ExpandAbstract bool `url:"expand_abstract" default:"true"`
 }
 
 func (br *BranchRequester) SchemaFrameAll(buf *[]schema.RawSchemaItem, name string, options *BranchSchemaFrameOptions) (response TerminusResponse, err error) {
@@ -259,7 +263,7 @@ func (br *BranchRequester) SchemaFrameType(buf *schema.RawSchemaItem, name, docT
 	}
 	params := struct {
 		BranchSchemaFrameOptions
-		Type string `json:"type"`
+		Type string `url:"type"`
 	}{*options, docType}
 	sl := br.Client.C.QueryStruct(params).Get(br.getURL(name, "schema"))
 	return doRequest(br.ctx, sl, buf)

@@ -21,6 +21,7 @@ const (
 	GraphTypeSchema   GraphTypes = "schema"
 )
 
+// TODO: Mention that DocumentT must have proper json tags to be unmarshalled from response
 type DocumentIntroducer[DocumentT any] BaseIntroducer
 
 func (di *DocumentIntroducer[DocumentT]) OnDatabase(path DatabasePath) *DocumentRequester[DocumentT] {
@@ -194,7 +195,7 @@ func (dr *DocumentRequester[DocumentT]) CreateBulk(docs []DocumentT, options *Do
 	if dr.dataVersion != "" {
 		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
 	}
-	response, err = doRequest(dr.ctx, sl, &insertedIDs)
+	response, err = doRequest(dr.ctx, sl, &insertedIDs) // FIXME: figure out actual response schema
 	return
 }
 
@@ -215,7 +216,7 @@ func (dr *DocumentRequester[DocumentT]) UpdateBulk(docs []DocumentT, options *Do
 	if dr.dataVersion != "" {
 		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
 	}
-	response, err = doRequest(dr.ctx, sl, &updatedIDs)
+	response, err = doRequest(dr.ctx, sl, &updatedIDs) // FIXME: figure out actual response schema
 	return
 }
 
@@ -230,8 +231,8 @@ type DocumentDeleteOptions struct {
 	GraphType GraphTypes `url:"graph_type" default:"instance"` //  FIXME: check all params in options everywhere if they have to enums
 	Message   string     `url:"message" default:"Default message"`
 	Author    string     `url:"author" default:"Default author"`
-	Nuke      bool       `json:"nuke,omitempty"`
-	ID        string     `json:"id,omitempty"`
+	Nuke      bool       `url:"nuke,omitempty"`
+	ID        string     `url:"id,omitempty"`
 }
 
 func (dr *DocumentRequester[DocumentT]) DeleteBulk(docIDs []string, options *DocumentDeleteOptions) (deletedIDs []string, response TerminusResponse, err error) {
@@ -243,7 +244,7 @@ func (dr *DocumentRequester[DocumentT]) DeleteBulk(docIDs []string, options *Doc
 	if dr.dataVersion != "" {
 		sl = sl.Set(srverror.DataVersionHeader, dr.dataVersion)
 	}
-	response, err = doRequest(dr.ctx, sl, &deletedIDs)
+	response, err = doRequest(dr.ctx, sl, &deletedIDs) // FIXME: figure out actual response schema
 	return
 }
 

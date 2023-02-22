@@ -55,8 +55,8 @@ func (rr *RepoRequester) Optimize(repoID string) (response TerminusResponse, err
 }
 
 type RepoSchemaFrameOptions struct {
-	CompressIDs    bool `json:"compress_ids" default:"true"`
-	ExpandAbstract bool `json:"expand_abstract" default:"true"`
+	CompressIDs    bool `url:"compress_ids" default:"true"`
+	ExpandAbstract bool `url:"expand_abstract" default:"true"`
 }
 
 func (rr *RepoRequester) SchemaFrameAll(buf *[]schema.RawSchemaItem, name string, options *RepoSchemaFrameOptions) (response TerminusResponse, err error) {
@@ -83,7 +83,7 @@ func (rr *RepoRequester) SchemaFrameType(buf *schema.RawSchemaItem, name, docTyp
 	}
 	params := struct {
 		RepoSchemaFrameOptions
-		Type string `json:"type"`
+		Type string `url:"type"`
 	}{*options, docType}
 	sl := rr.Client.C.QueryStruct(params).Get(rr.getURL(name, "schema"))
 	return doRequest(rr.ctx, sl, buf)

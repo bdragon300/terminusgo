@@ -165,15 +165,15 @@ func (dr *DatabaseRequester) WOQL(buf *srverror.WOQLResponse, name string, query
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
-	type commitInfo struct {
+	commitInfo := struct {
 		Author  string `json:"author"`
 		Message string `json:"message"`
-	}
+	}{Author: options.CommitAuthor, Message: options.CommitMessage}
 	body := struct {
 		AllWitnesses bool          `json:"all_witnesses,omitempty"`
-		CommitInfo   commitInfo    `json:"commit_info"`
+		CommitInfo   any           `json:"commit_info"`
 		Query        bare.RawQuery `json:"query"`
-	}{options.AllWitnesses, commitInfo{options.CommitAuthor, options.CommitMessage}, query}
+	}{options.AllWitnesses, commitInfo, query}
 	sl := dr.Client.C.BodyJSON(body).Post(dr.getURL(name, "woql"))
 	return doRequest(dr.ctx, sl, buf)
 }
@@ -221,8 +221,8 @@ func (dr *DatabaseRequester) Optimize(dbName string) (response TerminusResponse,
 }
 
 type DatabaseSchemaFrameOptions struct {
-	CompressIDs    bool `json:"compress_ids" default:"true"`
-	ExpandAbstract bool `json:"expand_abstract" default:"true"`
+	CompressIDs    bool `url:"compress_ids" default:"true"`
+	ExpandAbstract bool `url:"expand_abstract" default:"true"`
 }
 
 func (dr *DatabaseRequester) SchemaFrameAll(buf *[]schema.RawSchemaItem, name string, options *DatabaseSchemaFrameOptions) (response TerminusResponse, err error) {
@@ -249,7 +249,7 @@ func (dr *DatabaseRequester) SchemaFrameType(buf *schema.RawSchemaItem, name, do
 	}
 	params := struct {
 		DatabaseSchemaFrameOptions
-		Type string `json:"type"`
+		Type string `url:"type"`
 	}{*options, docType}
 	sl := dr.Client.C.QueryStruct(params).Get(dr.getURL(name, "schema"))
 	return doRequest(dr.ctx, sl, buf)

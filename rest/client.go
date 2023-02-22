@@ -129,15 +129,15 @@ func (c *Client) WOQL(ctx context.Context, buf *srverror.WOQLResponse, query bar
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
-	type commitInfo struct {
+	commitInfo := struct {
 		Author  string `json:"author"`
 		Message string `json:"message"`
-	}
+	}{Author: options.CommitAuthor, Message: options.CommitMessage}
 	body := struct {
 		AllWitnesses bool          `json:"all_witnesses,omitempty"`
-		CommitInfo   commitInfo    `json:"commit_info"`
+		CommitInfo   any           `json:"commit_info"`
 		Query        bare.RawQuery `json:"query"`
-	}{options.AllWitnesses, commitInfo{options.CommitAuthor, options.CommitMessage}, query}
+	}{options.AllWitnesses, commitInfo, query}
 	sl := c.C.BodyJSON(body).Post("woql")
 	return doRequest(ctx, sl, buf)
 }

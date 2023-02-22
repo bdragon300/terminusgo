@@ -37,7 +37,7 @@ func (ur *UserRequester) WithContext(ctx context.Context) *UserRequester {
 }
 
 type UserListAllOptions struct {
-	Capability bool `json:"capability" default:"false"`
+	Capability bool `url:"capability" default:"false"`
 }
 
 func (ur *UserRequester) ListAll(buf *[]User, options *UserListAllOptions) (response TerminusResponse, err error) {
@@ -49,7 +49,7 @@ func (ur *UserRequester) ListAll(buf *[]User, options *UserListAllOptions) (resp
 }
 
 type UserGetOptions struct {
-	Capability bool `json:"capability" default:"false"`
+	Capability bool `url:"capability" default:"false"`
 }
 
 func (ur *UserRequester) Get(buf *User, name string, options *UserListAllOptions) (response TerminusResponse, err error) {
