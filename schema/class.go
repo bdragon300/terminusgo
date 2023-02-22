@@ -77,22 +77,6 @@ func (c *Class) Name() string {
 	return c.ID
 }
 
-func (c *Class) Validate() error {
-	// TODO: call go-validate
-	if c.Documentation != nil {
-		defaultLang := false
-		for _, v := range c.Documentation {
-			if v.Language == "" {
-				if defaultLang {
-					return errors.New("class documentation has several entries with default language (no language specified)")
-				}
-				defaultLang = true
-			}
-		}
-	}
-	return nil
-}
-
 func (c *Class) Deserialize(m RawSchemaItem) error {
 	if !hasType(m, ClassSchemaItem) {
 		return errors.New("item is not a Class")

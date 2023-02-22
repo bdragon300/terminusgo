@@ -582,7 +582,7 @@ func (b *QueryBuilder) True() *QueryBuilder {
 }
 
 func (b *QueryBuilder) Path(subj StringOrVariable, pattern string, obj StringOrVariable, resultVar Variable) *QueryBuilder {
-	parsedPattern, err := parseTriplePattern(pattern) // TODO: add Validate method
+	parsedPattern, err := parseTriplePattern(pattern)
 	if err != nil {
 		panic(err)
 	}

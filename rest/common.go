@@ -8,7 +8,6 @@ import (
 	"github.com/bdragon300/terminusgo/srverror"
 	"github.com/creasty/defaults"
 	"github.com/dghubble/sling"
-	"github.com/go-playground/validator/v10"
 )
 
 const (
@@ -30,10 +29,6 @@ type BaseRequester struct {
 
 type TerminusResponse interface {
 	IsOK() bool
-}
-
-type Validated interface {
-	Validate() error
 }
 
 type ObjectPathProvider interface {
@@ -71,8 +66,7 @@ func prepareOptions[T any](options *T) (*T, error) {
 		options = new(T)
 		defaults.MustSet(options)
 	}
-	validate := validator.New()
-	return options, validate.Struct(options)
+	return options, nil
 }
 
 func getDBBase(dbName, organization string) string {

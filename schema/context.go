@@ -13,8 +13,8 @@ type ContextDocumentation struct {
 }
 
 type Context struct {
-	Schema        string                `json:"@schema" mapstructure:"@schema" validate:"url,required"`
-	Base          string                `json:"@base" mapstructure:"@base" validate:"url,required"`
+	Schema        string                `json:"@schema" mapstructure:"@schema"`
+	Base          string                `json:"@base" mapstructure:"@base"`
 	Documentation *ContextDocumentation `json:"@documentation,omitempty" mapstructure:"@documentation,omitempty"`
 }
 

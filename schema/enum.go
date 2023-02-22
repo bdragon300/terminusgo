@@ -9,7 +9,7 @@ import (
 
 type Enum struct {
 	ID    string   `mapstructure:"@id"`
-	Value []string `mapstructure:"@value" validate:"required"`
+	Value []string `mapstructure:"@value"`
 	// TODO: implement documentation
 }
 

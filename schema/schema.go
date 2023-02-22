@@ -75,21 +75,6 @@ func (s *Schema) findNameType(name string, typ ItemType) int {
 	return -1
 }
 
-func (s *Schema) Validate() error {
-	if s.Context.Schema == "" {
-		return errors.New("empty context object in schema")
-	}
-	names := make(map[string]struct{})
-	for _, item := range s.SchemaItems {
-		obj := item.(IdentityKeeper)
-		if _, ok := names[obj.Name()]; ok {
-			return fmt.Errorf("duplicate schema item with name %s", obj.Name())
-		}
-		names[obj.Name()] = struct{}{}
-	}
-	return nil
-}
-
 func (s *Schema) MarshalJSON() ([]byte, error) {
 	buf := make([]RawSchemaItem, 0, len(s.SchemaItems)+1)
 	if err := s.Serialize(buf); err != nil {

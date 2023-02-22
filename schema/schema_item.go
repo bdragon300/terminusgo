@@ -69,8 +69,8 @@ type ClassDocumentationType struct {
 	Language   string                                      `json:"@language,omitempty"`
 	Label      string                                      `json:"@label"`
 	Comment    string                                      `json:"@comment"`
-	Properties map[string]ClassDocumentationPropertiesItem `json:"@properties,omitempty" validate:"required_without=Values"`
-	Values     map[string]string                           `json:"@values,omitempty" validate:"required_without=Properties"`
+	Properties map[string]ClassDocumentationPropertiesItem `json:"@properties,omitempty"`
+	Values     map[string]string                           `json:"@values,omitempty"`
 }
 
 type ClassDocumentationPropertiesItem struct {
