@@ -37,8 +37,18 @@ func (c *Client) WithJWTAuth(jwtToken string) *Client {
 	return c
 }
 
-func (c *Client) WithAPITokenAuth(token string) *Client {
-	c.C.Set("API_TOKEN", token) // TODO: check if it is actually used in db
+func (c *Client) WithBasicAuth(user, password string) *Client {
+	c.C.SetBasicAuth(user, password)
+	return c
+}
+
+func (c *Client) WithUsernameAuth(header, username string) *Client {
+	c.C.Set(header, username)
+	return c
+}
+
+func (c *Client) WithTokenAuth(token string) *Client {
+	c.C.Set("Authorization", "Token "+token)
 	return c
 }
 
