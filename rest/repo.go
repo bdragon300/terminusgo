@@ -59,7 +59,7 @@ type RepoSchemaFrameOptions struct {
 	ExpandAbstract bool `url:"expand_abstract" default:"true"`
 }
 
-func (rr *RepoRequester) SchemaFrameAll(buf *[]schema.RawSchemaItem, name string, options *RepoSchemaFrameOptions) (response TerminusResponse, err error) {
+func (rr *RepoRequester) SchemaFrameAll(name string, buf *[]schema.RawSchemaItem, options *RepoSchemaFrameOptions) (response TerminusResponse, err error) {
 	var resp map[string]map[string]any
 	if options, err = prepareOptions(options); err != nil {
 		return
@@ -77,7 +77,7 @@ func (rr *RepoRequester) SchemaFrameAll(buf *[]schema.RawSchemaItem, name string
 	return
 }
 
-func (rr *RepoRequester) SchemaFrameType(buf *schema.RawSchemaItem, name, docType string, options *RepoSchemaFrameOptions) (response TerminusResponse, err error) {
+func (rr *RepoRequester) SchemaFrameType(name, docType string, buf *schema.RawSchemaItem, options *RepoSchemaFrameOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}

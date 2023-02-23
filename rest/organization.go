@@ -30,7 +30,7 @@ func (or *OrganizationRequester) ListAll(buf *[]Organization) (response Terminus
 	return doRequest(or.ctx, sl, buf)
 }
 
-func (or *OrganizationRequester) Get(buf *Organization, name string) (response TerminusResponse, err error) {
+func (or *OrganizationRequester) Get(name string, buf *Organization) (response TerminusResponse, err error) {
 	sl := or.Client.C.Get(or.getURL(name))
 	return doRequest(or.ctx, sl, buf)
 }

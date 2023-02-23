@@ -35,7 +35,7 @@ func (rr *RemoteRequester) ListAllNames(buf *[]string) (response TerminusRespons
 	return
 }
 
-func (rr *RemoteRequester) Get(buf *Remote, name string) (response TerminusResponse, err error) {
+func (rr *RemoteRequester) Get(name string, buf *Remote) (response TerminusResponse, err error) {
 	query := struct {
 		RemoteName string `url:"remote_name"`
 	}{name}

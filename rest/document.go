@@ -154,7 +154,7 @@ type DocumentGetOptions struct {
 	Prefixed    bool       `url:"prefixed" default:"true"`
 }
 
-func (dr *DocumentRequester[DocumentT]) Get(buf *DocumentT, docID string, options *DocumentGetOptions) (response TerminusResponse, err error) {
+func (dr *DocumentRequester[DocumentT]) Get(docID string, buf *interface{}, options *DocumentGetOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}

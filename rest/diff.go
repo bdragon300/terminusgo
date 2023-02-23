@@ -46,7 +46,7 @@ func (dr *DiffRequester) Diff(buf *Diff, options *DiffOptions) (response Terminu
 	return doRequest(dr.ctx, sl, buf)
 }
 
-func (dr *DiffRequester) Patch(buf, before any, diff *Diff) (response TerminusResponse, err error) {
+func (dr *DiffRequester) Patch(before any, diff *Diff, buf any) (response TerminusResponse, err error) {
 	body := struct {
 		Before any   `json:"before"`
 		Patch  *Diff `json:"patch"`
@@ -55,7 +55,7 @@ func (dr *DiffRequester) Patch(buf, before any, diff *Diff) (response TerminusRe
 	return doRequest(dr.ctx, sl, buf)
 }
 
-func (dr *DiffRequester) DiffObjs(buf *Diff, objBefore, objAfter any, options *DiffShortOptions) (response TerminusResponse, err error) {
+func (dr *DiffRequester) DiffObjs(objBefore, objAfter any, buf *Diff, options *DiffShortOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -66,7 +66,7 @@ func (dr *DiffRequester) DiffObjs(buf *Diff, objBefore, objAfter any, options *D
 	})
 }
 
-func (dr *DiffRequester) DiffObjAndDocRevision(buf *Diff, docRevision string, obj any, docID string, options *DiffShortOptions) (response TerminusResponse, err error) {
+func (dr *DiffRequester) DiffObjAndDocRevision(docRevision string, obj any, buf *Diff, docID string, options *DiffShortOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -78,7 +78,7 @@ func (dr *DiffRequester) DiffObjAndDocRevision(buf *Diff, docRevision string, ob
 	})
 }
 
-func (dr *DiffRequester) DiffDocRevisions(buf *Diff, revisionBefore, revisionAfter string, docID string, options *DiffShortOptions) (response TerminusResponse, err error) {
+func (dr *DiffRequester) DiffDocRevisions(revisionBefore, revisionAfter string, buf *Diff, docID string, options *DiffShortOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -90,7 +90,7 @@ func (dr *DiffRequester) DiffDocRevisions(buf *Diff, revisionBefore, revisionAft
 	})
 }
 
-func (dr *DiffRequester) DiffAllDocsRevisions(buf *Diff, revisionBefore, revisionAfter string, options *DiffShortOptions) (response TerminusResponse, err error) {
+func (dr *DiffRequester) DiffAllDocsRevisions(revisionBefore, revisionAfter string, buf *Diff, options *DiffShortOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}

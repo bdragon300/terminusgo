@@ -79,7 +79,7 @@ func (dr *DatabaseRequester) WithDataVersion(dataVersion string) *DatabaseReques
 	return dr
 }
 
-func (dr *DatabaseRequester) ListAll(buf *[]Database, userName string) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) ListAll(userName string, buf *[]Database) (response TerminusResponse, err error) {
 	URL := "/" // Current user databases by default
 	if userName != "" {
 		URL = fmt.Sprintf(
@@ -91,7 +91,7 @@ func (dr *DatabaseRequester) ListAll(buf *[]Database, userName string) (response
 	return doRequest(dr.ctx, sl, buf)
 }
 
-func (dr *DatabaseRequester) Get(buf *Database, name string) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Get(name string, buf *Database) (response TerminusResponse, err error) {
 	options := map[string]any{"verbose": true, "branches": true}
 	sl := dr.Client.C.QueryStruct(options).Get(dr.getURL(name, "db"))
 	return doRequest(dr.ctx, sl, buf)
@@ -161,7 +161,7 @@ type DatabaseWOQLOptions struct {
 }
 
 // Query with database context
-func (dr *DatabaseRequester) WOQL(buf *srverror.WOQLResponse, name string, query bare.RawQuery, options *DatabaseWOQLOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) WOQL(name string, query bare.RawQuery, buf *srverror.WOQLResponse, options *DatabaseWOQLOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -197,7 +197,7 @@ func (dr *DatabaseRequester) Clone(newName, newLabel string, options *DatabaseCl
 }
 
 // TODO: figure out what prefixes are
-func (dr *DatabaseRequester) Prefixes(buf *Prefix, dbName string) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Prefixes(dbName string, buf *Prefix) (response TerminusResponse, err error) {
 	sl := dr.Client.C.Get(dr.getURL(dbName, "prefixes"))
 	return doRequest(dr.ctx, sl, buf)
 }
@@ -207,7 +207,7 @@ type DatabaseCommitLogOptions struct {
 	Start int `url:"start,omitempty" default:"0"`
 }
 
-func (dr *DatabaseRequester) CommitLog(buf *[]Commit, name string, options *DatabaseCommitLogOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) CommitLog(name string, buf *[]Commit, options *DatabaseCommitLogOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -225,7 +225,7 @@ type DatabaseSchemaFrameOptions struct {
 	ExpandAbstract bool `url:"expand_abstract" default:"true"`
 }
 
-func (dr *DatabaseRequester) SchemaFrameAll(buf *[]schema.RawSchemaItem, name string, options *DatabaseSchemaFrameOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) SchemaFrameAll(name string, buf *[]schema.RawSchemaItem, options *DatabaseSchemaFrameOptions) (response TerminusResponse, err error) {
 	var resp map[string]map[string]any
 	if options, err = prepareOptions(options); err != nil {
 		return
@@ -243,7 +243,7 @@ func (dr *DatabaseRequester) SchemaFrameAll(buf *[]schema.RawSchemaItem, name st
 	return
 }
 
-func (dr *DatabaseRequester) SchemaFrameType(buf *schema.RawSchemaItem, name, docType string, options *DatabaseSchemaFrameOptions) (response TerminusResponse, err error) {
+func (dr *DatabaseRequester) SchemaFrameType(name, docType string, buf *schema.RawSchemaItem, options *DatabaseSchemaFrameOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -259,7 +259,7 @@ type DatabasePackOptions struct {
 	RepositoryHead string `json:"repository_head,omitempty"`
 }
 
-func (dr *DatabaseRequester) Pack(buf io.Writer, name string, options *DatabasePackOptions) (writtenBytes int64, response TerminusResponse, err error) {
+func (dr *DatabaseRequester) Pack(name string, w io.Writer, options *DatabasePackOptions) (writtenBytes int64, response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -283,7 +283,7 @@ func (dr *DatabaseRequester) Pack(buf io.Writer, name string, options *DatabaseP
 		return
 	}
 	response = &srverror.TerminusOkResponse{Response: httpResp}
-	writtenBytes, err = io.Copy(buf, httpResp.Body)
+	writtenBytes, err = io.Copy(w, httpResp.Body)
 	return
 }
 

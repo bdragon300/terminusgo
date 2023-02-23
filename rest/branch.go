@@ -221,7 +221,7 @@ type BranchCommitLogOptions struct {
 	Start int `url:"start" default:"0"`
 }
 
-func (br *BranchRequester) CommitLog(buf *[]Commit, branchID string, options *BranchCommitLogOptions) (response TerminusResponse, err error) {
+func (br *BranchRequester) CommitLog(branchID string, buf *[]Commit, options *BranchCommitLogOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -239,7 +239,7 @@ type BranchSchemaFrameOptions struct {
 	ExpandAbstract bool `url:"expand_abstract" default:"true"`
 }
 
-func (br *BranchRequester) SchemaFrameAll(buf *[]schema.RawSchemaItem, name string, options *BranchSchemaFrameOptions) (response TerminusResponse, err error) {
+func (br *BranchRequester) SchemaFrameAll(name string, buf *[]schema.RawSchemaItem, options *BranchSchemaFrameOptions) (response TerminusResponse, err error) {
 	var resp map[string]map[string]any
 	if options, err = prepareOptions(options); err != nil {
 		return
@@ -257,7 +257,7 @@ func (br *BranchRequester) SchemaFrameAll(buf *[]schema.RawSchemaItem, name stri
 	return
 }
 
-func (br *BranchRequester) SchemaFrameType(buf *schema.RawSchemaItem, name, docType string, options *BranchSchemaFrameOptions) (response TerminusResponse, err error) {
+func (br *BranchRequester) SchemaFrameType(name, docType string, buf *schema.RawSchemaItem, options *BranchSchemaFrameOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}

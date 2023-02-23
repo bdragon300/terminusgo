@@ -135,7 +135,7 @@ type ClientWOQLOptions struct {
 }
 
 // Query with empty context
-func (c *Client) WOQL(ctx context.Context, buf *srverror.WOQLResponse, query bare.RawQuery, options *ClientWOQLOptions) (response TerminusResponse, err error) {
+func (c *Client) WOQL(ctx context.Context, query bare.RawQuery, buf *srverror.WOQLResponse, options *ClientWOQLOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}

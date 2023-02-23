@@ -52,7 +52,7 @@ type UserGetOptions struct {
 	Capability bool `url:"capability" default:"false"`
 }
 
-func (ur *UserRequester) Get(buf *User, name string, options *UserListAllOptions) (response TerminusResponse, err error) {
+func (ur *UserRequester) Get(name string, buf *User, options *UserListAllOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}

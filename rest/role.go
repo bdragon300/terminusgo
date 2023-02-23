@@ -25,7 +25,7 @@ func (rr *RoleRequester) ListAll(buf *[]Role) (response TerminusResponse, err er
 	return doRequest(rr.ctx, sl, buf)
 }
 
-func (rr *RoleRequester) Get(buf *Role, name string) (response TerminusResponse, err error) {
+func (rr *RoleRequester) Get(name string, buf *Role) (response TerminusResponse, err error) {
 	sl := rr.Client.C.Get(rr.getURL(name))
 	return doRequest(rr.ctx, sl, buf)
 }
