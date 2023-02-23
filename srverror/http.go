@@ -1,8 +1,11 @@
 package srverror
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
+	"strings"
 )
 
 const (
@@ -11,7 +14,7 @@ const (
 	XTerminusDBApiBaseHeader  = "X-Terminusdb-Api-Base" // TODO: related to resumable_endpoint option in tus prolog client...
 )
 
-type TerminusErrorResponse struct {
+type TerminusError struct {
 	Type            string           `json:"@type"`
 	Auth            string           `json:"auth"`
 	Scope           string           `json:"scope"`
@@ -21,39 +24,63 @@ type TerminusErrorResponse struct {
 	APIStatus       string           `json:"api:status"`
 	SystemWitnesses []map[string]any `json:"system:witnesses"`
 
-	Response *http.Response
+	Response *http.Response `json:"-"`
 }
 
-func (ter TerminusErrorResponse) String() string {
+func (ter TerminusError) String() string {
 	return fmt.Sprintf("terminus db server returned HTTP code %d: %s", ter.Response.StatusCode, ter.APIMessage)
 }
 
-func (ter TerminusErrorResponse) IsOK() bool {
+func (ter TerminusError) IsOK() bool {
 	return false
 }
 
-func (ter TerminusErrorResponse) DataVersion() string {
+func (ter TerminusError) DataVersion() string {
 	return ter.Response.Header.Get(DataVersionHeader)
 }
 
+func (ter TerminusError) Error() string {
+	return ter.String()
+}
+
+func (ter TerminusError) Is(e error) bool {
+	if v, ok := e.(TerminusError); ok {
+		ter.Response = v.Response // Exclude Response pointer from comparing
+		return reflect.DeepEqual(ter, v)
+	}
+	return false
+}
+
 type TerminusOkResponse struct {
-	Type      string `json:"@type"`
-	APIStatus string `json:"api:success"`
-	// Push
-	APIRepoHeadUpdated bool   `json:"api:repo_head_updated"`
-	APIRepoHead        string `json:"api:repo_head"`
-	// Squash
-	APICommit      string `json:"api:commit"`
-	APIOldCommit   string `json:"api:old_commit"`
-	APIEmptyCommit bool   `json:"api:empty_commit"`
-	// Rebase
-	APIForwardedCommits string `json:"api:forwarded_commits"`
-	APIRebaseReport     string `json:"api:rebase_report"`
-	APICommonCommitID   string `json:"api:common_commit_id"`
-	// DB
-	APIDatabaseURI string `json:"api:database_uri"`
+	Type      string
+	APIFields map[string]any
+	Rest      map[string]any
 
 	Response *http.Response
+}
+
+func (tor *TerminusOkResponse) UnmarshalJSON(b []byte) error {
+	m := make(map[string]any)
+	if err := json.Unmarshal(b, &m); err != nil {
+		return err
+	}
+	if v, ok := m["@type"]; ok {
+		tor.Type = v.(string)
+		delete(m, "@type")
+	}
+
+	for k, v := range m {
+		if !strings.HasPrefix(k, "api:") {
+			if tor.Rest == nil {
+				tor.Rest = make(map[string]any)
+			}
+			tor.Rest[k] = v
+			delete(m, k)
+		}
+	}
+
+	tor.APIFields = m
+	return nil
 }
 
 func (tor TerminusOkResponse) String() string {

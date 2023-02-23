@@ -41,7 +41,7 @@ func doRequest(ctx context.Context, sling *sling.Sling, okResponse any) (Terminu
 	if err != nil {
 		return nil, err
 	}
-	errResp := &srverror.TerminusErrorResponse{}
+	errResp := &srverror.TerminusError{}
 	okResp := &srverror.TerminusOkResponse{}
 	if okResponse == nil {
 		okResponse = okResp
@@ -55,7 +55,7 @@ func doRequest(ctx context.Context, sling *sling.Sling, okResponse any) (Terminu
 	}
 	if resp.StatusCode >= 300 {
 		errResp.Response = resp
-		return errResp, nil
+		return errResp, errResp
 	}
 	okResp.Response = resp
 	return okResp, nil

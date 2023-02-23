@@ -278,9 +278,11 @@ func (dr *DatabaseRequester) Pack(name string, w io.Writer, options *DatabasePac
 	}
 	defer httpResp.Body.Close()
 	if httpResp.StatusCode >= 300 {
-		response = &srverror.TerminusErrorResponse{}
-		err = json.NewDecoder(httpResp.Body).Decode(response)
-		return
+		res := srverror.TerminusError{Response: httpResp}
+		if err = json.NewDecoder(httpResp.Body).Decode(&res); err != nil {
+			return
+		}
+		return writtenBytes, res, res
 	}
 	response = &srverror.TerminusOkResponse{Response: httpResp}
 	writtenBytes, err = io.Copy(w, httpResp.Body)
