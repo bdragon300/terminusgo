@@ -18,16 +18,6 @@ type Commit struct {
 	// FIXME: commit can be identified by id or a path (db, branch, etc.)
 }
 
-type CommitIntroducer BaseIntroducer
-
-func (ci *CommitIntroducer) OnBranch(path BranchPath) *CommitRequester {
-	return &CommitRequester{Client: ci.client, path: path}
-}
-
-type CommitRequester BaseRequester
-
-// TODO: implement smth or remove
-
 type CommitPath struct {
 	Organization, Database, Repo, Branch, Commit string
 }

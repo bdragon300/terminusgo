@@ -66,9 +66,7 @@ func (br *BranchRequester) Delete(branchID string) (response TerminusResponse, e
 }
 
 type BranchPushOptions struct {
-	PushPrefixes bool   `json:"push_prefixes" default:"true"`
-	Author       string `json:"author" default:"defaultAuthor"` // FIXME: figure out if author, message are actually used in db (and required or not)
-	Message      string `json:"message" default:"Default commit message"`
+	PushPrefixes bool `json:"push_prefixes" default:"true"`
 }
 
 // error conditions:
@@ -96,26 +94,17 @@ func (br *BranchRequester) Push(branchID, remote, remoteBranch string, options *
 	return doRequest(br.ctx, sl, nil)
 }
 
-type BranchPullOptions struct {
-	Author  string `json:"author" default:"defaultAuthor"` // FIXME: figure out if author, message are actually used in db (and required or not)
-	Message string `json:"message" default:"Default commit message"`
-}
-
-func (br *BranchRequester) Pull(branchID, remote, remoteBranch string, options *BranchPullOptions) (response TerminusResponse, err error) {
-	if options, err = prepareOptions(options); err != nil {
-		return
-	}
+func (br *BranchRequester) Pull(branchID, remote, remoteBranch string) (response TerminusResponse, err error) {
 	body := struct {
-		BranchPullOptions
 		Remote       string `json:"remote"`
 		RemoteBranch string `json:"remote_branch"`
-	}{*options, remote, remoteBranch}
+	}{remote, remoteBranch}
 	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "pull"))
-	return doRequest(br.ctx, sl, nil) // TODO: There is ok response also
+	return doRequest(br.ctx, sl, nil)
 }
 
 type BranchSquashOptions struct {
-	Author  string `json:"author" default:"defaultAuthor"` // FIXME: figure out if this field is required and default author is ok
+	Author  string `json:"author" default:"defaultAuthor"`
 	Message string `json:"message" default:"Default commit message"`
 }
 

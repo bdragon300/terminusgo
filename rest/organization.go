@@ -16,7 +16,6 @@ type Organization struct {
 	Name     string   `json:"name"`
 }
 
-// TODO: test on local instance
 type OrganizationRequester BaseRequester
 
 func (or *OrganizationRequester) WithContext(ctx context.Context) *OrganizationRequester {

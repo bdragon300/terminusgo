@@ -200,7 +200,7 @@ func (dr *DocumentRequester[DocumentT]) CreateBulk(docs []DocumentT, options *Do
 }
 
 type DocumentUpdateOptions struct {
-	GraphType GraphTypes `url:"graph_type" default:"instance"` //  FIXME: check all params in options everywhere if they have to enums
+	GraphType GraphTypes `url:"graph_type" default:"instance"`
 	Message   string     `url:"message" default:"Default message"`
 	Author    string     `url:"author" default:"Default author"`
 	RawJSON   bool       `url:"raw_json,omitempty"`
@@ -228,7 +228,7 @@ func (dr *DocumentRequester[DocumentT]) Update(doc DocumentT, options *DocumentU
 }
 
 type DocumentDeleteOptions struct {
-	GraphType GraphTypes `url:"graph_type" default:"instance"` //  FIXME: check all params in options everywhere if they have to enums
+	GraphType GraphTypes `url:"graph_type" default:"instance"`
 	Message   string     `url:"message" default:"Default message"`
 	Author    string     `url:"author" default:"Default author"`
 	Nuke      bool       `url:"nuke,omitempty"`

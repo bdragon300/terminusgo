@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 )
 
-// TODO: move from rest to another place
+// TODO: move Client from rest to another place
 // TODO: api_init.pl paths and filenames and headers
 type Client struct {
 	C          *sling.Sling
@@ -66,10 +66,6 @@ func (c *Client) Repos() *RepoIntroducer {
 
 func (c *Client) Branches() *BranchIntroducer {
 	return &BranchIntroducer{client: c}
-}
-
-func (c *Client) Commits() *CommitIntroducer {
-	return &CommitIntroducer{client: c}
 }
 
 func (c *Client) Users() *UserIntroducer {
