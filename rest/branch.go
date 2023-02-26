@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/bdragon300/terminusgo/schema"
 )
@@ -139,7 +140,7 @@ func (br *BranchRequester) Reset(branchID, commit string, options *BranchResetOp
 			Repo:         path.Repo,
 			Branch:       branchID,
 			Commit:       commit,
-		}.GetPath()
+		}.String()
 	}
 	body := struct {
 		Commit string `json:"commit_descriptor"`
@@ -190,7 +191,7 @@ func (br *BranchRequester) RebaseFromPath(branchID, rebaseFrom string, options *
 	return doRequest(br.ctx, sl, nil)
 }
 
-func (br *BranchRequester) Rebase(branchID string, rebaseFrom ObjectPathProvider, options *BranchRebaseOptions) (response TerminusResponse, err error) {
+func (br *BranchRequester) Rebase(branchID string, rebaseFrom TerminusObjectPath, options *BranchRebaseOptions) (response TerminusResponse, err error) {
 	if rebaseFrom == nil {
 		panic("rebaseFrom is nil")
 	}
@@ -200,7 +201,7 @@ func (br *BranchRequester) Rebase(branchID string, rebaseFrom ObjectPathProvider
 	body := struct {
 		BranchRebaseOptions
 		RebaseFrom string `json:"rebase_from"`
-	}{*options, rebaseFrom.GetPath()}
+	}{*options, rebaseFrom.String()}
 	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "rebase"))
 	return doRequest(br.ctx, sl, nil)
 }
@@ -273,20 +274,37 @@ type BranchPath struct {
 }
 
 func (bp BranchPath) GetURL(action string) string {
-	return fmt.Sprintf("%s/%s", action, bp.GetPath())
+	return fmt.Sprintf("%s/%s", action, bp.String())
 }
 
-func (bp BranchPath) GetPath() string {
+func (bp BranchPath) String() string {
 	suburl := fmt.Sprintf(
 		"%s/%s",
-		getDBBase(bp.Database, bp.Organization),
-		url.QueryEscape(bp.Repo),
+		getDatabasePath(bp.Organization, bp.Database),
+		url.PathEscape(bp.Repo),
 	)
 	if bp.Repo == RepoMeta {
 		return suburl
 	}
 	if bp.Branch == BranchCommits {
-		return fmt.Sprintf("%s/%s", suburl, bp.Branch)
+		return fmt.Sprintf("%s/%s", suburl, BranchCommits)
 	}
-	return fmt.Sprintf("%s/branch/%s", suburl, bp.Branch)
+	return fmt.Sprintf("%s/branch/%s", suburl, url.PathEscape(bp.Branch))
+}
+
+func (bp BranchPath) FromString(s string) BranchPath {
+	res := BranchPath{}
+	parts := strings.SplitN(s, "/", 5)
+	if parts[0] == DatabaseSystem {
+		parts = append(parts[:1], parts[0:]...) // Insert empty Organization part
+		parts[0] = ""
+	}
+	if len(parts) < 3 {
+		panic(fmt.Sprintf("too short path %q", s))
+	}
+	if len(parts) == 5 && parts[3] == "branch" {
+		parts = append(parts[:3], parts[4:]...) // Cut "branch" part
+	}
+	fillUnescapedStringFields(parts, &res)
+	return res
 }

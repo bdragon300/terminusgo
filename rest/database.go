@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/bdragon300/terminusgo/schema"
@@ -84,7 +85,7 @@ func (dr *DatabaseRequester) ListAll(userName string, buf *[]Database) (response
 	if userName != "" {
 		URL = fmt.Sprintf(
 			"organizations/%s/users/%s/databases",
-			url.QueryEscape(dr.path.(OrganizationPath).Organization), url.QueryEscape(userName),
+			url.PathEscape(dr.path.(OrganizationPath).Organization), url.PathEscape(userName),
 		)
 	}
 	sl := dr.Client.C.Get(URL)
@@ -314,9 +315,23 @@ type DatabasePath struct {
 }
 
 func (dp DatabasePath) GetURL(action string) string {
-	return fmt.Sprintf("%s/%s", action, dp.GetPath())
+	return fmt.Sprintf("%s/%s", action, dp.String())
 }
 
-func (dp DatabasePath) GetPath() string {
-	return getDBBase(dp.Database, dp.Organization)
+func (dp DatabasePath) String() string {
+	return getDatabasePath(dp.Organization, dp.Database)
+}
+
+func (dp DatabasePath) FromString(s string) DatabasePath {
+	parts := strings.SplitN(s, "/", 2)
+	if parts[0] == DatabaseSystem {
+		parts = append(parts[:1], parts[0:]...) // Insert empty Organization part
+		parts[0] = ""
+	}
+	if len(parts) < 2 {
+		panic(fmt.Sprintf("too short path %q", s))
+	}
+	res := DatabasePath{}
+	fillUnescapedStringFields(parts, &res)
+	return res
 }

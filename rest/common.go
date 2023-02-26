@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"reflect"
 
 	"github.com/bdragon300/terminusgo/srverror"
 	"github.com/creasty/defaults"
@@ -23,7 +24,7 @@ type BaseIntroducer struct {
 
 type BaseRequester struct {
 	Client *Client
-	path   ObjectPathProvider
+	path   TerminusObjectPath
 	ctx    context.Context
 }
 
@@ -31,9 +32,9 @@ type TerminusResponse interface {
 	IsOK() bool
 }
 
-type ObjectPathProvider interface {
+type TerminusObjectPath interface {
+	fmt.Stringer
 	GetURL(action string) string
-	GetPath() string
 }
 
 func doRequest(ctx context.Context, sling *sling.Sling, okResponse any) (TerminusResponse, error) {
@@ -69,13 +70,29 @@ func prepareOptions[T any](options *T) (*T, error) {
 	return options, nil
 }
 
-func getDBBase(dbName, organization string) string {
-	if dbName == DatabaseSystem {
+func getDatabasePath(organization, database string) string {
+	if database == DatabaseSystem {
 		return DatabaseSystem
 	}
-	org := organization
-	if org == "" {
-		org = "NoOrganization"
+	if organization == "" {
+		organization = "NoOrganization"
 	}
-	return fmt.Sprintf("%s/%s", url.QueryEscape(org), url.QueryEscape(dbName))
+	return fmt.Sprintf("%s/%s", url.PathEscape(organization), url.PathEscape(database))
+}
+
+func fillUnescapedStringFields(vals []string, buf any) {
+	buff := reflect.ValueOf(buf).Elem()
+	typ := buff.Type()
+	for i := 0; i < typ.NumField() && len(vals) > 0; i++ {
+		fld := typ.Field(i)
+		if !fld.IsExported() || fld.Type.Kind() != reflect.String {
+			continue
+		}
+		s := vals[0]
+		if us, err := url.PathUnescape(vals[0]); err == nil {
+			s = us
+		}
+		buff.Field(i).SetString(s)
+		vals = vals[1:]
+	}
 }

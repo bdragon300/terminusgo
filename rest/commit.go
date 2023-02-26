@@ -3,6 +3,7 @@ package rest
 import (
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 type Commit struct {
@@ -23,14 +24,30 @@ type CommitPath struct {
 }
 
 func (cp CommitPath) GetURL(action string) string {
-	return fmt.Sprintf("%s/%s", action, cp.GetPath())
+	return fmt.Sprintf("%s/%s", action, cp.String())
 }
 
-func (cp CommitPath) GetPath() string {
+func (cp CommitPath) String() string {
 	return fmt.Sprintf(
 		"%s/%s/commit/%s",
-		getDBBase(cp.Database, cp.Organization),
-		url.QueryEscape(cp.Repo),
-		cp.Commit,
+		getDatabasePath(cp.Organization, cp.Database),
+		url.PathEscape(cp.Repo),
+		url.PathEscape(cp.Commit),
 	)
+	// FIXME: cp.Branch is not used (+ see FromString if fix is needed)
+}
+
+func (cp CommitPath) FromString(s string) CommitPath {
+	res := CommitPath{}
+	parts := strings.SplitN(s, "/", 5)
+	if parts[0] == DatabaseSystem {
+		parts = append(parts[:1], parts[0:]...) // Insert empty Organization part
+		parts[0] = ""
+	}
+	if len(parts) < 5 {
+		panic(fmt.Sprintf("too short path %q", s))
+	}
+	parts = append(parts[:3], parts[4:]...) // Cut "commit" part
+	fillUnescapedStringFields(parts, &res)
+	return res
 }

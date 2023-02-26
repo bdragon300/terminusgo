@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 type UserCapability struct {
@@ -123,12 +124,23 @@ type UserPath struct {
 }
 
 func (up UserPath) GetURL(action string) string {
-	return fmt.Sprintf("%s/%s", action, up.GetPath())
+	return fmt.Sprintf("%s/%s", action, up.String())
 }
 
-func (up UserPath) GetPath() string {
+func (up UserPath) String() string {
 	if up.Organization == "" {
-		return url.QueryEscape(up.User)
+		return url.PathEscape(up.User)
 	}
-	return fmt.Sprintf("%s/users/%s", url.QueryEscape(up.Organization), url.QueryEscape(up.User))
+	return fmt.Sprintf("%s/users/%s", url.PathEscape(up.Organization), url.PathEscape(up.User))
+}
+
+func (up UserPath) FromString(s string) UserPath {
+	parts := strings.SplitN(s, "/", 3)
+	if len(parts) < 3 {
+		panic(fmt.Sprintf("too short path %q", s))
+	}
+	parts = append(parts[:1], parts[2:]...) // Cut "users" part
+	res := UserPath{}
+	fillUnescapedStringFields(parts, &res)
+	return res
 }

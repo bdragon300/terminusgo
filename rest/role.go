@@ -90,5 +90,5 @@ func (rr *RoleRequester) Delete(name string) (response TerminusResponse, err err
 }
 
 func (rr *RoleRequester) getURL(objectID string) string {
-	return fmt.Sprintf("roles/%s", url.QueryEscape(objectID))
+	return fmt.Sprintf("roles/%s", url.PathEscape(objectID))
 }

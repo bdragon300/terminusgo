@@ -138,5 +138,5 @@ func (tr *TripleRequester) Insert(data *string, options *TripleInsertOptions) (r
 }
 
 func (tr *TripleRequester) getURL(action string, graphType GraphTypes) string {
-	return fmt.Sprintf("%s/%s/%s", action, tr.path.GetPath(), graphType)
+	return fmt.Sprintf("%s/%s/%s", action, tr.path.String(), graphType)
 }

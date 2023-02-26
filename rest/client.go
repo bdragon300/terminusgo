@@ -99,16 +99,16 @@ func (c *Client) Ping(ctx context.Context) (response TerminusResponse, err error
 	return doRequest(ctx, sl, nil)
 }
 
-type VersionInfo struct {
+type ComponentVersion struct {
 	Version string `json:"version"`
 	GitHash string `json:"git_hash,omitempty"`
 }
 
 type TerminusVersionInfo struct {
-	Authority       string      `json:"authority"`
-	Storage         VersionInfo `json:"storage"`
-	TerminusDB      VersionInfo `json:"terminusdb"`
-	TerminusDBStore VersionInfo `json:"terminusdb_store"`
+	Authority       string           `json:"authority"`
+	Storage         ComponentVersion `json:"storage"`
+	TerminusDB      ComponentVersion `json:"terminusdb"`
+	TerminusDBStore ComponentVersion `json:"terminusdb_store"`
 }
 
 func (c *Client) VersionInfo(ctx context.Context, buf *TerminusVersionInfo) (response TerminusResponse, err error) {

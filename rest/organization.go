@@ -53,9 +53,16 @@ type OrganizationPath struct {
 }
 
 func (op OrganizationPath) GetURL(action string) string {
-	return fmt.Sprintf("%s/%s", action, op.GetPath())
+	return fmt.Sprintf("%s/%s", action, op.String())
 }
 
-func (op OrganizationPath) GetPath() string {
-	return url.QueryEscape(op.Organization)
+func (op OrganizationPath) String() string {
+	return url.PathEscape(op.Organization)
+}
+
+func (op OrganizationPath) FromString(s string) OrganizationPath {
+	if v, err := url.PathUnescape(s); err == nil {
+		return OrganizationPath{Organization: v}
+	}
+	return OrganizationPath{Organization: s}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/bdragon300/terminusgo/schema"
 
@@ -103,9 +104,23 @@ type RepoPath struct {
 }
 
 func (rp RepoPath) GetURL(action string) string {
-	return fmt.Sprintf("%s/%s", action, rp.GetPath())
+	return fmt.Sprintf("%s/%s", action, rp.String())
 }
 
-func (rp RepoPath) GetPath() string {
-	return fmt.Sprintf("%s/%s", getDBBase(rp.Database, rp.Organization), url.QueryEscape(rp.Repo))
+func (rp RepoPath) String() string {
+	return fmt.Sprintf("%s/%s", getDatabasePath(rp.Organization, rp.Database), url.PathEscape(rp.Repo))
+}
+
+func (rp RepoPath) FromString(s string) RepoPath {
+	res := RepoPath{}
+	parts := strings.SplitN(s, "/", 3)
+	if parts[0] == DatabaseSystem {
+		parts = append(parts[:1], parts[0:]...) // Insert empty Organization part
+		parts[0] = ""
+	}
+	if len(parts) < 3 {
+		panic(fmt.Sprintf("too short path %q", s))
+	}
+	fillUnescapedStringFields(parts, &res)
+	return res
 }
