@@ -1,0 +1,19 @@
+version: "3"
+
+vars:
+  DOCKER_COMPOSE_FILE: docker-compose.test.yml
+
+tasks:
+  up:
+    cmds:
+      - docker-compose -f '{{.DOCKER_COMPOSE_FILE}}' up -d
+
+  rune2e:
+    deps:
+      - task: up
+    cmds:
+      - docker-compose -f '{{.DOCKER_COMPOSE_FILE}}' run --rm terminusgo go test -run '{{.CLI_ARGS}}' ./...
+
+  down:
+    cmds:
+      - docker-compose -f '{{.DOCKER_COMPOSE_FILE}}' down

@@ -1,0 +1,27 @@
+version: "3"
+services:
+  terminusdb-server:
+    image: terminusdb/terminusdb-server:v11.0.1
+    container_name: terminusdb-server
+    hostname: terminusdb-server
+    tty: true
+    ports:
+      - 6363:6363
+    environment:
+      - TERMINUSDB_SERVER_PORT=6363
+      - TERMINUSDB_ADMIN_PASS=admin  # Default credentials admin:admin
+      - TERMINUSDB_INSECURE_USER_HEADER_ENABLED=true
+      - TERMINUSDB_INSECURE_USER_HEADER=X-Forwarded-User
+    restart: "on-failure"
+
+  terminusgo:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      DATABASE_URL: "http://terminusdb-server:6363/"
+    depends_on:
+      - terminusdb-server
+    restart: "no"
+    profiles:
+      - noautostart
