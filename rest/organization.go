@@ -6,14 +6,12 @@ import (
 	"net/url"
 )
 
-// TODO: seems that these structures are items of system_schema items and should be aligned with it
-//
-//	(lack of `child` field below for example) (but no Remote in system_schema for example)
+// TODO: seems that these structures are items of system_schema items and should be aligned with it (lack of `child` field below for example) (but no Remote in system_schema for example)
 type Organization struct {
-	ID       string   `json:"@id"`
-	Type     string   `json:"@type"`
-	Database []string `json:"database"`
-	Name     string   `json:"name"`
+	ID          string   `json:"@id"`
+	Type        string   `json:"@type"`
+	Name        string   `json:"name"`
+	DatabaseIDs []string `json:"database"`
 }
 
 type OrganizationRequester BaseRequester

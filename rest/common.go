@@ -28,7 +28,10 @@ type BaseRequester struct {
 	ctx    context.Context
 }
 
+type TerminusObject any
+
 type TerminusResponse interface {
+	fmt.Stringer
 	IsOK() bool
 }
 
@@ -42,8 +45,8 @@ func doRequest(ctx context.Context, sling *sling.Sling, okResponse any) (Terminu
 	if err != nil {
 		return nil, err
 	}
-	errResp := &srverror.TerminusError{}
-	okResp := &srverror.TerminusOkResponse{}
+	errResp := srverror.TerminusError{}
+	okResp := srverror.TerminusOkResponse{}
 	if okResponse == nil {
 		okResponse = okResp
 	}
@@ -51,13 +54,17 @@ func doRequest(ctx context.Context, sling *sling.Sling, okResponse any) (Terminu
 		req = req.WithContext(ctx)
 	}
 	resp, err := sling.Do(req, okResponse, errResp)
+	if resp != nil && resp.StatusCode >= 300 {
+		errResp.Response = resp
+		if err != nil {
+			return errResp, err
+		}
+		return errResp, errResp
+	}
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode >= 300 {
-		errResp.Response = resp
-		return errResp, errResp
-	}
+
 	okResp.Response = resp
 	return okResp, nil
 }
@@ -95,4 +102,16 @@ func fillUnescapedStringFields(vals []string, buf any) {
 		buff.Field(i).SetString(s)
 		vals = vals[1:]
 	}
+}
+
+func extractField[T any](obj TerminusObject, fieldName string) T {
+	val := reflect.Indirect(reflect.ValueOf(obj))
+	if !val.IsValid() {
+		panic("object is nil")
+	}
+
+	t := new(T)
+	tTyp := reflect.TypeOf(*t)
+	fld := val.FieldByName(fieldName)
+	return fld.Convert(tTyp).Interface().(T)
 }

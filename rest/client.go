@@ -11,7 +11,6 @@ import (
 	"github.com/bdragon300/terminusgo/woql/bare"
 
 	"github.com/dghubble/sling"
-	"github.com/hashicorp/go-cleanhttp"
 )
 
 // TODO: move Client from rest to another place
@@ -22,11 +21,12 @@ type Client struct {
 	implClient *http.Client
 }
 
-func NewClient(hostPath string) *Client {
-	cl := &Client{C: sling.New()}
-	cl.implClient = cleanhttp.DefaultPooledClient()
-	cl.C.Client(cl.implClient) // TODO: passing context (Timeout for instance) by user to a request
-	cl.baseAPIURL = hostPath + "/api"
+func NewClient(client *http.Client, hostPath string) *Client {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	cl := &Client{C: sling.New().Client(client), implClient: client}
+	cl.baseAPIURL = hostPath + "/api/" // FIXME: use path.join
 	cl.C.Base(cl.baseAPIURL)
 
 	return cl
@@ -42,6 +42,7 @@ func (c *Client) WithBasicAuth(user, password string) *Client {
 	return c
 }
 
+// Must be enabled in server config in TERMINUSDB_INSECURE_USER_HEADER_ENABLED and TERMINUSDB_INSECURE_USER_HEADER
 func (c *Client) WithUsernameAuth(header, username string) *Client {
 	c.C.Set(header, username)
 	return c
@@ -130,7 +131,7 @@ type ClientWOQLOptions struct {
 	AllWitnesses  bool
 }
 
-// Query with empty context
+// Query with empty db context
 func (c *Client) WOQL(ctx context.Context, query bare.RawQuery, buf *srverror.WOQLResponse, options *ClientWOQLOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return

@@ -5,18 +5,22 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+
+	"github.com/bdragon300/terminusgo/srverror"
 )
 
 type UserCapability struct {
-	ID    string `json:"@id"`
-	Role  []Role `json:"role"`
-	Scope string `json:"scope"`
+	ID    string         `json:"@id"`
+	Type  string         `json:"@type"`
+	Role  []Role         `json:"role"`
+	Scope TerminusObject `json:"scope"`
 }
 
 type User struct {
-	ID         string           `json:"@id"`
-	Capability []UserCapability `json:"capability"`
-	Name       string           `json:"name"`
+	ID           string                                     `json:"@id"`
+	Type         string                                     `json:"@type"`
+	Name         string                                     `json:"name"`
+	Capabilities []srverror.Union[UserCapability, []string] `json:"capability"`
 }
 
 type UserIntroducer BaseIntroducer
@@ -38,7 +42,7 @@ func (ur *UserRequester) WithContext(ctx context.Context) *UserRequester {
 }
 
 type UserListAllOptions struct {
-	Capability bool `url:"capability" default:"false"`
+	Capability bool `url:"capability" default:"false"` // True to expand `capability` into "Capability" schema item list, False to get them as string list
 }
 
 func (ur *UserRequester) ListAll(buf *[]User, options *UserListAllOptions) (response TerminusResponse, err error) {
@@ -50,10 +54,10 @@ func (ur *UserRequester) ListAll(buf *[]User, options *UserListAllOptions) (resp
 }
 
 type UserGetOptions struct {
-	Capability bool `url:"capability" default:"false"`
+	Capability bool `url:"capability" default:"false"` // True to expand `capability` into "Capability" schema item list, False to get them as string list
 }
 
-func (ur *UserRequester) Get(name string, buf *User, options *UserListAllOptions) (response TerminusResponse, err error) {
+func (ur *UserRequester) Get(name string, buf *User, options *UserGetOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -80,28 +84,43 @@ func (ur *UserRequester) UpdatePassword(name, password string) (response Terminu
 }
 
 type UserUpdateCapabilitiesOptions struct {
-	Scope     string   `json:"scope"`
-	ScopeType string   `json:"scope_type,omitempty" default:"database"` // Only one possible value: "database" or empty
-	Roles     []string `json:"roles"`                                   // Role IDs
+	Scope     TerminusObject
+	Roles     []Role
+	Operation UserCapabilitiesOperation `default:"revoke"`
 }
 
 type UserCapabilitiesOperation string
 
 const (
-	UserGrantCapabilities  UserCapabilitiesOperation = "grant"
-	UserRevokeCapabilities UserCapabilitiesOperation = "revoke"
+	UserCapabilitiesGrant  UserCapabilitiesOperation = "grant"
+	UserCapabilitiesRevoke UserCapabilitiesOperation = "revoke"
 )
 
-func (ur *UserRequester) UpdateCapabilities(name string, operation UserCapabilitiesOperation, options *UserUpdateCapabilitiesOptions) (response TerminusResponse, err error) {
+func (ur *UserRequester) UpdateCapabilities(name string, options *UserUpdateCapabilitiesOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
+	roles := make([]string, 0)
+	for _, v := range options.Roles {
+		roles = append(roles, v.Name)
+	}
+	scopeType := extractField[string](options.Scope, "Type")
+	if strings.HasSuffix(scopeType, "Database") {
+		scopeType = "database"
+	}
 	body := struct {
-		UserUpdateCapabilitiesOptions
-		User      string `json:"user"`
-		Operation string `json:"operation"`
-	}{*options, name, string(operation)}
+		Scope     string   `json:"scope"`
+		ScopeType string   `json:"scope_type"`
+		Roles     []string `json:"roles"`
+		User      string   `json:"user"`
+		Operation string   `json:"operation"`
+	}{extractField[string](options.Scope, "Name"), scopeType, roles, name, string(options.Operation)}
 	sl := ur.Client.C.BodyJSON(body).Post("capabilities")
+	return doRequest(ur.ctx, sl, nil)
+}
+
+func (ur *UserRequester) Delete(name string) (response TerminusResponse, err error) {
+	sl := ur.Client.C.Delete(ur.getURL(name))
 	return doRequest(ur.ctx, sl, nil)
 }
 

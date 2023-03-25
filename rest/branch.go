@@ -16,10 +16,6 @@ type Branch struct {
 	Head string `json:"head"`
 }
 
-func (b Branch) GetPath() RepoPath {
-	return RepoPath{} // TODO
-}
-
 type BranchIntroducer BaseIntroducer
 
 func (bi *BranchIntroducer) OnRepo(path RepoPath) *BranchRequester {
@@ -42,7 +38,18 @@ func (br *BranchRequester) ListAll(buf *[]Branch) (response TerminusResponse, er
 		Database:     path.Database,
 		Repo:         path.Repo,
 		Branch:       BranchCommits,
-	}).WithContext(br.ctx).ListAll(buf, &DocumentListOptions{Type: "Branch", GraphType: GraphTypeInstance, Prefixed: true})
+	}).WithContext(br.ctx).ListAll(buf, &DocumentListOptions{CompressIDs: true, Type: "Branch", GraphType: GraphTypeInstance, Prefixed: true})
+}
+
+func (br *BranchRequester) Get(branchName string, buf *Branch) (response TerminusResponse, err error) {
+	di := DocumentIntroducer[Branch]{client: br.Client}
+	path := br.path.(RepoPath)
+	return di.OnBranch(BranchPath{
+		Organization: path.Organization,
+		Database:     path.Database,
+		Repo:         path.Repo,
+		Branch:       BranchCommits,
+	}).WithContext(br.ctx).Get(branchName, buf, &DocumentGetOptions{CompressIDs: true, Type: "Branch", GraphType: GraphTypeInstance, Prefixed: true})
 }
 
 type BranchCreateOptions struct {
@@ -52,17 +59,17 @@ type BranchCreateOptions struct {
 	Prefixes *Prefix `json:"prefixes,omitempty"`
 }
 
-func (br *BranchRequester) Create(branchID string, options *BranchCreateOptions) (response TerminusResponse, err error) {
+func (br *BranchRequester) Create(branchName string, options *BranchCreateOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
 	// TODO: maybe need to implement _convert_document function and use here
-	sl := br.Client.C.BodyJSON(options).Post(br.getURL(branchID, "branch"))
+	sl := br.Client.C.BodyJSON(options).Post(br.getURL(branchName, "branch"))
 	return doRequest(br.ctx, sl, nil)
 }
 
-func (br *BranchRequester) Delete(branchID string) (response TerminusResponse, err error) {
-	sl := br.Client.C.Delete(br.getURL(branchID, "branch"))
+func (br *BranchRequester) Delete(branchName string) (response TerminusResponse, err error) {
+	sl := br.Client.C.Delete(br.getURL(branchName, "branch"))
 	return doRequest(br.ctx, sl, nil)
 }
 
@@ -82,7 +89,7 @@ type BranchPushOptions struct {
 // -- remote doesn't know what we're talking about
 // -- remote authorization failed
 // - communication error while talking to the remote
-func (br *BranchRequester) Push(branchID, remote, remoteBranch string, options *BranchPushOptions) (response TerminusResponse, err error) {
+func (br *BranchRequester) Push(branchName, remote, remoteBranch string, options *BranchPushOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -91,16 +98,16 @@ func (br *BranchRequester) Push(branchID, remote, remoteBranch string, options *
 		Remote       string `json:"remote"`
 		RemoteBranch string `json:"remote_branch"`
 	}{*options, remote, remoteBranch}
-	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "push"))
+	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchName, "push"))
 	return doRequest(br.ctx, sl, nil)
 }
 
-func (br *BranchRequester) Pull(branchID, remote, remoteBranch string) (response TerminusResponse, err error) {
+func (br *BranchRequester) Pull(branchName, remote, remoteBranch string) (response TerminusResponse, err error) {
 	body := struct {
 		Remote       string `json:"remote"`
 		RemoteBranch string `json:"remote_branch"`
 	}{remote, remoteBranch}
-	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "pull"))
+	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchName, "pull"))
 	return doRequest(br.ctx, sl, nil)
 }
 
@@ -109,7 +116,7 @@ type BranchSquashOptions struct {
 	Message string `json:"message" default:"Default commit message"`
 }
 
-func (br *BranchRequester) Squash(branchID string, options *BranchSquashOptions) (response TerminusResponse, err error) {
+func (br *BranchRequester) Squash(branchName string, options *BranchSquashOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -120,32 +127,15 @@ func (br *BranchRequester) Squash(branchID string, options *BranchSquashOptions)
 	body := struct {
 		CommitInfo any `json:"commit_info"`
 	}{commitInfo}
-	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "squash"))
+	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchName, "squash"))
 	return doRequest(br.ctx, sl, nil)
 }
 
-type BranchResetOptions struct {
-	UsePath bool
-}
-
-func (br *BranchRequester) Reset(branchID, commit string, options *BranchResetOptions) (response TerminusResponse, err error) {
-	if options, err = prepareOptions(options); err != nil {
-		return
-	}
-	if !options.UsePath {
-		path := br.path.(RepoPath)
-		commit = CommitPath{
-			Organization: path.Organization,
-			Database:     path.Database,
-			Repo:         path.Repo,
-			Branch:       branchID,
-			Commit:       commit,
-		}.String()
-	}
+func (br *BranchRequester) Reset(branchName string, commit Commit) (response TerminusResponse, err error) {
 	body := struct {
 		Commit string `json:"commit_descriptor"`
-	}{commit}
-	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "reset"))
+	}{commit.Identifier}
+	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchName, "reset"))
 	return doRequest(br.ctx, sl, nil)
 }
 
@@ -157,7 +147,12 @@ type BranchApplyOptions struct {
 	Type            string          `json:"type,omitempty" default:"squash"`
 }
 
-func (br *BranchRequester) Apply(branchID, beforeCommit, afterCommit string, options *BranchApplyOptions) (response TerminusResponse, err error) {
+func (br *BranchRequester) ApplyCommitsRange(branchName string, before, after Commit, options *BranchApplyOptions) (response TerminusResponse, err error) {
+	return br.Apply(branchName, before.Identifier, after.Identifier, options)
+}
+
+// beforeRef/afterRef could be commit identifiers or branch names
+func (br *BranchRequester) Apply(branchName, beforeRef, afterRef string, options *BranchApplyOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -167,11 +162,11 @@ func (br *BranchRequester) Apply(branchID, beforeCommit, afterCommit string, opt
 	}{Author: options.Author, Message: options.Message}
 	body := struct {
 		BranchApplyOptions
-		CommitInfo   any    `json:"commit_info"`
-		BeforeCommit string `json:"before_commit"`
-		AfterCommit  string `json:"after_commit"`
-	}{*options, commitInfo, beforeCommit, afterCommit}
-	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "apply"))
+		CommitInfo any    `json:"commit_info"`
+		BeforeRef  string `json:"before_commit"`
+		AfterRef   string `json:"after_commit"`
+	}{*options, commitInfo, beforeRef, afterRef}
+	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchName, "apply"))
 	return doRequest(br.ctx, sl, nil)
 }
 
@@ -179,7 +174,7 @@ type BranchRebaseOptions struct {
 	Author string `json:"author" default:"Default author"`
 }
 
-func (br *BranchRequester) RebaseFromPath(branchID, rebaseFrom string, options *BranchRebaseOptions) (response TerminusResponse, err error) {
+func (br *BranchRequester) RebaseFromPath(branchName, rebaseFrom string, options *BranchRebaseOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -187,11 +182,11 @@ func (br *BranchRequester) RebaseFromPath(branchID, rebaseFrom string, options *
 		BranchRebaseOptions
 		RebaseFrom string `json:"rebase_from"`
 	}{*options, rebaseFrom}
-	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "rebase"))
+	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchName, "rebase"))
 	return doRequest(br.ctx, sl, nil)
 }
 
-func (br *BranchRequester) Rebase(branchID string, rebaseFrom TerminusObjectPath, options *BranchRebaseOptions) (response TerminusResponse, err error) {
+func (br *BranchRequester) Rebase(branchName string, rebaseFrom TerminusObjectPath, options *BranchRebaseOptions) (response TerminusResponse, err error) {
 	if rebaseFrom == nil {
 		panic("rebaseFrom is nil")
 	}
@@ -202,7 +197,7 @@ func (br *BranchRequester) Rebase(branchID string, rebaseFrom TerminusObjectPath
 		BranchRebaseOptions
 		RebaseFrom string `json:"rebase_from"`
 	}{*options, rebaseFrom.String()}
-	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchID, "rebase"))
+	sl := br.Client.C.BodyJSON(body).Post(br.getURL(branchName, "rebase"))
 	return doRequest(br.ctx, sl, nil)
 }
 
@@ -211,16 +206,16 @@ type BranchCommitLogOptions struct {
 	Start int `url:"start" default:"0"`
 }
 
-func (br *BranchRequester) CommitLog(branchID string, buf *[]Commit, options *BranchCommitLogOptions) (response TerminusResponse, err error) {
+func (br *BranchRequester) CommitLog(branchName string, buf *[]Commit, options *BranchCommitLogOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
-	sl := br.Client.C.QueryStruct(options).Get(br.getURL(branchID, "log"))
+	sl := br.Client.C.QueryStruct(options).Get(br.getURL(branchName, "log"))
 	return doRequest(br.ctx, sl, buf)
 }
 
-func (br *BranchRequester) Optimize(branchID string) (response TerminusResponse, err error) {
-	sl := br.Client.C.Post(br.getURL(branchID, "optimize"))
+func (br *BranchRequester) Optimize(branchName string) (response TerminusResponse, err error) {
+	sl := br.Client.C.Post(br.getURL(branchName, "optimize"))
 	return doRequest(br.ctx, sl, nil)
 }
 
@@ -229,12 +224,12 @@ type BranchSchemaFrameOptions struct {
 	ExpandAbstract bool `url:"expand_abstract" default:"true"`
 }
 
-func (br *BranchRequester) SchemaFrameAll(name string, buf *[]schema.RawSchemaItem, options *BranchSchemaFrameOptions) (response TerminusResponse, err error) {
+func (br *BranchRequester) SchemaFrameAll(branchName string, buf *[]schema.RawSchemaItem, options *BranchSchemaFrameOptions) (response TerminusResponse, err error) {
 	var resp map[string]map[string]any
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
-	sl := br.Client.C.QueryStruct(options).Get(br.getURL(name, "schema"))
+	sl := br.Client.C.QueryStruct(options).Get(br.getURL(branchName, "schema"))
 	response, err = doRequest(br.ctx, sl, &resp)
 	if err != nil {
 		return
@@ -247,7 +242,7 @@ func (br *BranchRequester) SchemaFrameAll(name string, buf *[]schema.RawSchemaIt
 	return
 }
 
-func (br *BranchRequester) SchemaFrameType(name, docType string, buf *schema.RawSchemaItem, options *BranchSchemaFrameOptions) (response TerminusResponse, err error) {
+func (br *BranchRequester) SchemaFrameType(branchName, docType string, buf *schema.RawSchemaItem, options *BranchSchemaFrameOptions) (response TerminusResponse, err error) {
 	if options, err = prepareOptions(options); err != nil {
 		return
 	}
@@ -255,17 +250,17 @@ func (br *BranchRequester) SchemaFrameType(name, docType string, buf *schema.Raw
 		BranchSchemaFrameOptions
 		Type string `url:"type"`
 	}{*options, docType}
-	sl := br.Client.C.QueryStruct(params).Get(br.getURL(name, "schema"))
+	sl := br.Client.C.QueryStruct(params).Get(br.getURL(branchName, "schema"))
 	return doRequest(br.ctx, sl, buf)
 }
 
-func (br *BranchRequester) getURL(branchID, action string) string {
+func (br *BranchRequester) getURL(branch, action string) string {
 	path := br.path.(RepoPath)
 	return BranchPath{
 		Organization: path.Organization,
 		Database:     path.Database,
 		Repo:         path.Repo,
-		Branch:       branchID,
+		Branch:       branch,
 	}.GetURL(action)
 }
 

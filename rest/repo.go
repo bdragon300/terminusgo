@@ -19,7 +19,6 @@ func (ri *RepoIntroducer) OnDatabase(path DatabasePath) *RepoRequester {
 
 type RepoRequester struct {
 	BaseRequester
-	remoteAuthorization string
 }
 
 func (rr *RepoRequester) WithContext(ctx context.Context) *RepoRequester {
@@ -28,13 +27,7 @@ func (rr *RepoRequester) WithContext(ctx context.Context) *RepoRequester {
 	return &r
 }
 
-// Contents will be put to 'Authorization' header to a remote POST request, see src/core/api/db_fetch.pl:authorized_fetch() in TerminusDB sources
-func (rr *RepoRequester) WithRemoteAuth(contents string) *RepoRequester {
-	rr.remoteAuthorization = contents
-	return rr
-}
-
-func (rr *RepoRequester) Fetch(repoID string) (response TerminusResponse, err error) {
+func (rr *RepoRequester) Fetch(repoID, remoteAuthorization string) (response TerminusResponse, err error) {
 	// Implementation in db: src/core/api/db_fetch.pl:remote_fetch(). Quite awkward IMHO
 	path := rr.path.(DatabasePath)
 	URL := BranchPath{
@@ -43,10 +36,7 @@ func (rr *RepoRequester) Fetch(repoID string) (response TerminusResponse, err er
 		Repo:         repoID,
 		Branch:       BranchCommits,
 	}.GetURL("fetch")
-	sl := rr.Client.C.Post(URL)
-	if rr.remoteAuthorization != "" {
-		sl = sl.Set(srverror.RemoteAuthorizationHeader, rr.remoteAuthorization)
-	}
+	sl := rr.Client.C.Post(URL).Set(srverror.RemoteAuthorizationHeader, remoteAuthorization)
 	return doRequest(rr.ctx, sl, nil)
 }
 

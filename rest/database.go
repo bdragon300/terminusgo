@@ -33,16 +33,6 @@ type Prefix struct {
 	Type   string `json:"@type"`
 }
 
-type DatabaseInfo struct {
-	ID           string    `json:"@id"`
-	Type         string    `json:"@type"`
-	Name         string    `json:"name"`
-	Comment      string    `json:"comment"`
-	CreationDate time.Time `json:"creation_date"`
-	Label        string    `json:"label"`
-	State        string    `json:"state"`
-}
-
 type DatabaseIntroducer struct {
 	BaseIntroducer
 	ctx context.Context
@@ -58,9 +48,14 @@ func (di *DatabaseIntroducer) WithContext(ctx context.Context) *DatabaseIntroduc
 	return &r
 }
 
-func (di *DatabaseIntroducer) ListDatabaseInfo(buf *[]DatabaseInfo) (response TerminusResponse, err error) {
+func (di *DatabaseIntroducer) ListAll(buf *[]Database) (response TerminusResponse, err error) {
 	query := map[string]any{"verbose": true, "branches": true}
 	sl := di.client.C.QueryStruct(&query).Get("db")
+	return doRequest(di.ctx, sl, buf)
+}
+
+func (di *DatabaseIntroducer) ListAllOwned(buf *[]Database) (response TerminusResponse, err error) {
+	sl := di.client.C.Get("/")
 	return doRequest(di.ctx, sl, buf)
 }
 
@@ -81,13 +76,10 @@ func (dr *DatabaseRequester) WithDataVersion(dataVersion string) *DatabaseReques
 }
 
 func (dr *DatabaseRequester) ListAll(userName string, buf *[]Database) (response TerminusResponse, err error) {
-	URL := "/" // Current user databases by default
-	if userName != "" {
-		URL = fmt.Sprintf(
-			"organizations/%s/users/%s/databases",
-			url.PathEscape(dr.path.(OrganizationPath).Organization), url.PathEscape(userName),
-		)
-	}
+	URL := fmt.Sprintf(
+		"organizations/%s/users/%s/databases",
+		url.PathEscape(dr.path.(OrganizationPath).Organization), url.PathEscape(userName),
+	)
 	sl := dr.Client.C.Get(URL)
 	return doRequest(dr.ctx, sl, buf)
 }

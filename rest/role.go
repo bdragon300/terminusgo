@@ -30,8 +30,9 @@ const (
 
 type Role struct {
 	ID     string       `json:"@id"`
-	Action []RoleAction `json:"action"`
+	Type   string       `json:"@type"`
 	Name   string       `json:"name"`
+	Action []RoleAction `json:"action"`
 }
 
 type RoleRequester BaseRequester

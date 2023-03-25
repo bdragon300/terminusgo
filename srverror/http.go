@@ -28,7 +28,7 @@ type TerminusError struct {
 }
 
 func (ter TerminusError) String() string {
-	return fmt.Sprintf("terminus db server returned HTTP code %d: %s", ter.Response.StatusCode, ter.APIMessage)
+	return fmt.Sprintf("HTTP %d: %s", ter.Response.StatusCode, ter.APIMessage)
 }
 
 func (ter TerminusError) IsOK() bool {
